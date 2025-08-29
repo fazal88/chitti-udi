@@ -7,39 +7,47 @@ import { firebaseConfig } from '../firebaseConfig';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, push, set } from 'firebase/database';
 
+// Initialize Firebase app and database once
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const bowlsRef = ref(db, 'bowls');
+
+interface Member {
+  id: string;
+  firebaseToken: string;
+  name: string;
+}
+
 interface Bowl {
   id: string;
   name: string;
   description: string;
   ownerId: string;
-  listMembers: string[];
+  listMembers: Member[];
   listEntries: string[];
   memberLimit: number;
   inputCount: number;
 }
-
-const dummyBowls: Bowl[] = [
-  { id: '1', name: 'Breakfast Bowl', description: 'Start your day with energy!', ownerId: 'device-1', listMembers: ['Alice', 'Bob'], listEntries: ['Entry 1', 'Entry 2'], memberLimit: 0, inputCount: 0 },
-  { id: '2', name: 'Fruit Bowl', description: 'A healthy mix of fruits.', ownerId: 'device-2', listMembers: ['Charlie', 'Dana'], listEntries: ['Entry A', 'Entry B', 'Entry C'], memberLimit: 5, inputCount: 2 },
-  { id: '3', name: 'Salad Bowl', description: 'Fresh greens and veggies.', ownerId: 'device-3', listMembers: ['Eve'], listEntries: ['Entry X'], memberLimit: 2, inputCount: 1 },
-  { id: '4', name: 'Party Bowl', description: 'Perfect for sharing at parties.', ownerId: 'device-4', listMembers: ['Frank', 'Grace', 'Heidi'], listEntries: ['Entry Y', 'Entry Z'], memberLimit: 0, inputCount: 0 },
-  { id: '5', name: 'Snack Bowl', description: 'Quick bites for any time.', ownerId: 'device-5', listMembers: ['Ivan', 'Judy'], listEntries: ['Entry Q', 'Entry W', 'Entry E'], memberLimit: 10, inputCount: 3 },
-  { id: '6', name: 'Dessert Bowl', description: 'Sweet treats to end your meal.', ownerId: 'device-6', listMembers: ['Mallory', 'Oscar', 'Peggy', 'Sybil'], listEntries: ['Entry R'], memberLimit: 0, inputCount: 0 },
-];
 
 export default function BowlsScreen() {
   const [bowls, setBowls] = useState<Bowl[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
+  const [entryModalVisible, setEntryModalVisible] = useState(false);
+  const [entryText, setEntryText] = useState('');
+  const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
   const deviceId = Device.modelId || 'unknown-device';
   const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
 
-  // Initialize Firebase
+  // Simulate user info (replace with real auth/device info as needed)
+  const user = {
+    id: deviceId,
+    firebaseToken: 'dummy-token', // Replace with real token if available
+    name: 'Me', // Replace with real name if available
+  };
+
   useEffect(() => {
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const bowlsRef = ref(db, 'bowls');
     const unsubscribe = onValue(bowlsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -61,9 +69,6 @@ export default function BowlsScreen() {
     try {
       setLoading(true);
       setError(null);
-      const app = initializeApp(firebaseConfig);
-      const db = getDatabase(app);
-      const bowlsRef = ref(db, 'bowls');
       const newBowlRef = push(bowlsRef);
       const bowlToAdd = {
         ...newBowl,
@@ -91,6 +96,39 @@ export default function BowlsScreen() {
     });
   };
 
+  // Show entry modal and set selected bowl
+  const openEntryModal = (bowl: Bowl) => {
+    setSelectedBowl(bowl);
+    setEntryText('');
+    setEntryModalVisible(true);
+  };
+
+  // Add entry to bowl and update Firebase
+  const handleAddEntry = async () => {
+    if (!selectedBowl) return;
+    try {
+      setLoading(true);
+      setError(null);
+      // Add user to member list if not already present
+      const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
+      const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
+      // Add new entry
+      const updatedEntries = [...(Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : []), entryText];
+      // Update bowl in Firebase
+      const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
+      await set(bowlRef, {
+        ...selectedBowl,
+        listMembers: updatedMembers,
+        listEntries: updatedEntries,
+      });
+      setEntryModalVisible(false);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to add entry');
+      setLoading(false);
+    }
+  };
+
   const renderBowlItem = ({ item }: { item: Bowl }) => (
     <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}> 
       <View style={styles.cardHeader}>
@@ -106,7 +144,7 @@ export default function BowlsScreen() {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
-        <Text style={styles.countText}>{item.listMembers.length}</Text>
+        <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
@@ -114,7 +152,7 @@ export default function BowlsScreen() {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>📋 Total entries:</Text>
-        <Text style={styles.countText}>{item.listEntries.length}</Text>
+        <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
@@ -123,6 +161,12 @@ export default function BowlsScreen() {
         </Text>
       </View>
       <View style={styles.shareButtonRow}>
+        <Button
+          title="Add Entry"
+          color="#10B981"
+          onPress={() => openEntryModal(item)}
+        />
+        <View style={{ width: 8 }} />
         <Button
           title="Share"
           color="#2563EB"
@@ -190,6 +234,24 @@ export default function BowlsScreen() {
             <Button title="Cancel" color="#EF4444" onPress={() => setModalVisible(false)} />
           </View>
         </SafeAreaView>
+      </Modal>
+      <Modal visible={entryModalVisible} animationType="slide" transparent>
+        <View style={styles.entryModalOverlay}>
+          <View style={styles.entryModalContent}>
+            <Text style={styles.modalLabel}>Add Entry</Text>
+            <TextInput
+              placeholder="Enter your entry"
+              value={entryText}
+              onChangeText={setEntryText}
+              style={styles.input}
+            />
+            <View style={styles.modalButtonRow}>
+              <Button title="Submit" color="#10B981" onPress={handleAddEntry} disabled={!entryText.trim()} />
+              <View style={{ width: 12 }} />
+              <Button title="Cancel" color="#EF4444" onPress={() => setEntryModalVisible(false)} />
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -259,12 +321,26 @@ const styles = StyleSheet.create({
   modalButtonRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
   shareButtonRow: {
     marginTop: 10,
-    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+    flexDirection: 'row',
   },
   limitText: {
     fontSize: 14,
     color: '#F59E42',
     marginLeft: 6,
     fontWeight: 'bold',
+  },
+  entryModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  entryModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '85%',
+    elevation: 6,
   },
 });
