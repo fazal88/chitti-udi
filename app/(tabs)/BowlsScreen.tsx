@@ -7,34 +7,39 @@ import uuid from 'react-native-uuid';
 interface Bowl {
   id: string;
   name: string;
+  description: string;
   ownerId: string;
   listMembers: string[];
   listEntries: string[];
+  memberLimit: number;
+  inputCount: number;
 }
 
 const dummyBowls: Bowl[] = [
-  { id: '1', name: 'Breakfast Bowl', ownerId: 'device-1', listMembers: ['Alice', 'Bob'], listEntries: ['Entry 1', 'Entry 2'] },
-  { id: '2', name: 'Fruit Bowl', ownerId: 'device-2', listMembers: ['Charlie', 'Dana'], listEntries: ['Entry A', 'Entry B', 'Entry C'] },
-  { id: '3', name: 'Salad Bowl', ownerId: 'device-3', listMembers: ['Eve'], listEntries: ['Entry X'] },
-  { id: '4', name: 'Party Bowl', ownerId: 'device-4', listMembers: ['Frank', 'Grace', 'Heidi'], listEntries: ['Entry Y', 'Entry Z'] },
-  { id: '5', name: 'Snack Bowl', ownerId: 'device-5', listMembers: ['Ivan', 'Judy'], listEntries: ['Entry Q', 'Entry W', 'Entry E'] },
-  { id: '6', name: 'Dessert Bowl', ownerId: 'device-6', listMembers: ['Mallory', 'Oscar', 'Peggy', 'Sybil'], listEntries: ['Entry R'] },
+  { id: '1', name: 'Breakfast Bowl', description: 'Start your day with energy!', ownerId: 'device-1', listMembers: ['Alice', 'Bob'], listEntries: ['Entry 1', 'Entry 2'], memberLimit: 0, inputCount: 0 },
+  { id: '2', name: 'Fruit Bowl', description: 'A healthy mix of fruits.', ownerId: 'device-2', listMembers: ['Charlie', 'Dana'], listEntries: ['Entry A', 'Entry B', 'Entry C'], memberLimit: 5, inputCount: 2 },
+  { id: '3', name: 'Salad Bowl', description: 'Fresh greens and veggies.', ownerId: 'device-3', listMembers: ['Eve'], listEntries: ['Entry X'], memberLimit: 2, inputCount: 1 },
+  { id: '4', name: 'Party Bowl', description: 'Perfect for sharing at parties.', ownerId: 'device-4', listMembers: ['Frank', 'Grace', 'Heidi'], listEntries: ['Entry Y', 'Entry Z'], memberLimit: 0, inputCount: 0 },
+  { id: '5', name: 'Snack Bowl', description: 'Quick bites for any time.', ownerId: 'device-5', listMembers: ['Ivan', 'Judy'], listEntries: ['Entry Q', 'Entry W', 'Entry E'], memberLimit: 10, inputCount: 3 },
+  { id: '6', name: 'Dessert Bowl', description: 'Sweet treats to end your meal.', ownerId: 'device-6', listMembers: ['Mallory', 'Oscar', 'Peggy', 'Sybil'], listEntries: ['Entry R'], memberLimit: 0, inputCount: 0 },
 ];
 
 export default function BowlsScreen() {
   const [bowls, setBowls] = useState<Bowl[]>(dummyBowls);
   const [modalVisible, setModalVisible] = useState(false);
   const deviceId = Device.modelId || 'unknown-device';
-  const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', ownerId: deviceId, listMembers: [], listEntries: [] });
+  const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
 
   const addBowl = () => {
     const bowlToAdd = {
       ...newBowl,
       id: uuid.v4() as string,
       ownerId: deviceId,
+      memberLimit: Number(newBowl.memberLimit) || 0,
+      inputCount: Number(newBowl.inputCount) || 0,
     };
     setBowls([...bowls, bowlToAdd]);
-    setNewBowl({ id: '', name: '', ownerId: deviceId, listMembers: [], listEntries: [] });
+    setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
     setModalVisible(false);
   };
 
@@ -51,19 +56,32 @@ export default function BowlsScreen() {
     <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}> 
       <View style={styles.cardHeader}>
         <Text style={styles.bowlEmoji}>🐟🥣</Text>
-        <Text style={styles.cardTitle}>{item.name}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={styles.cardDescription}>{item.description}</Text>
+        </View>
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>👤 Owner:</Text>
         <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members:</Text>
+        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
         <Text style={styles.countText}>{item.listMembers.length}</Text>
       </View>
       <View style={styles.cardRow}>
-        <Text style={styles.iconText}>📋 Entries:</Text>
+        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
+        <Text style={styles.limitText}>{item.memberLimit}</Text>
+      </View>
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>📋 Total entries:</Text>
         <Text style={styles.countText}>{item.listEntries.length}</Text>
+      </View>
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
+        <Text style={styles.countText}>
+          {item.inputCount > 0 ? item.inputCount : 'no limit'}
+        </Text>
       </View>
       <View style={styles.shareButtonRow}>
         <Button
@@ -102,16 +120,24 @@ export default function BowlsScreen() {
             style={styles.input}
           />
           <TextInput
-            placeholder="Members (comma separated)"
-            value={newBowl.listMembers.join(',')}
-            onChangeText={(text) => setNewBowl({ ...newBowl, listMembers: text.split(',') })}
+            placeholder="Description"
+            value={newBowl.description}
+            onChangeText={(text) => setNewBowl({ ...newBowl, description: text })}
             style={styles.input}
           />
           <TextInput
-            placeholder="Entries (comma separated)"
-            value={newBowl.listEntries.join(',')}
-            onChangeText={(text) => setNewBowl({ ...newBowl, listEntries: text.split(',') })}
+            placeholder="Member Limit (0 means No Limit)"
+            value={newBowl.memberLimit === 0 ? '' : newBowl.memberLimit.toString()}
+            onChangeText={(text) => setNewBowl({ ...newBowl, memberLimit: Number(text) })}
             style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            placeholder="Input Count (0 means No Limit)"
+            value={newBowl.inputCount === 0 ? '' : newBowl.inputCount.toString()}
+            onChangeText={(text) => setNewBowl({ ...newBowl, inputCount: Number(text) })}
+            style={styles.input}
+            keyboardType="numeric"
           />
           <View style={styles.modalButtonRow}>
             <Button title="Add" color="#10B981" onPress={addBowl} />
@@ -166,6 +192,12 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cardTitle: { fontSize: 20, fontWeight: 'bold', color: '#7C3AED' },
+  cardDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+    marginBottom: 4,
+  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,5 +215,11 @@ const styles = StyleSheet.create({
   shareButtonRow: {
     marginTop: 10,
     alignItems: 'flex-end',
+  },
+  limitText: {
+    fontSize: 14,
+    color: '#F59E42',
+    marginLeft: 6,
+    fontWeight: 'bold',
   },
 });
