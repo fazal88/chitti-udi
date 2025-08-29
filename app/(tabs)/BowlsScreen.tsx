@@ -6,6 +6,8 @@ import uuid from 'react-native-uuid';
 import { firebaseConfig } from '../firebaseConfig';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, push, set } from 'firebase/database';
+import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 
 // Initialize Firebase app and database once
 const app = initializeApp(firebaseConfig);
@@ -39,15 +41,23 @@ export default function BowlsScreen() {
   const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
   const deviceId = Device.modelId || 'unknown-device';
   const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [userName, setUserName] = useState('');
 
-  // Simulate user info (replace with real auth/device info as needed)
-  const user = {
-    id: deviceId,
-    firebaseToken: 'dummy-token', // Replace with real token if available
-    name: 'Me', // Replace with real name if available
-  };
-
+  // Get and store FCM token on mount
   useEffect(() => {
+    async function getAndStoreFcmToken() {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        const tokenData = await Notifications.getExpoPushTokenAsync();
+        const token = tokenData.data;
+        setFcmToken(token);
+        await SecureStore.setItemAsync('fcmToken', token);
+        // Update user data with new token
+        setUser(prev => ({ ...prev, firebaseToken: token }));
+      }
+    }
+    getAndStoreFcmToken();
     const unsubscribe = onValue(bowlsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -65,10 +75,45 @@ export default function BowlsScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Use stored token if available
+  useEffect(() => {
+    async function loadToken() {
+      const token = await SecureStore.getItemAsync('fcmToken');
+      if (token) {
+        setFcmToken(token);
+        setUser(prev => ({ ...prev, firebaseToken: token }));
+      }
+    }
+    loadToken();
+  }, []);
+
+  // Load user name from SecureStore
+  useEffect(() => {
+    async function loadUserName() {
+      const name = await SecureStore.getItemAsync('userName');
+      if (name) setUserName(name);
+    }
+    loadUserName();
+  }, []);
+
+  // Save user name to SecureStore
+  const saveUserName = async (name: string) => {
+    setUserName(name);
+    await SecureStore.setItemAsync('userName', name);
+  };
+
+  // Simulate user info (replace with real auth/device info as needed)
+  const [user, setUser] = useState({
+    id: deviceId,
+    firebaseToken: fcmToken || 'dummy-token',
+    name: userName,
+  });
+
   const addBowl = async () => {
     try {
       setLoading(true);
       setError(null);
+      if (!userName) return; // Prevent bowl creation if name is empty
       const newBowlRef = push(bowlsRef);
       const bowlToAdd = {
         ...newBowl,
@@ -88,7 +133,7 @@ export default function BowlsScreen() {
   };
 
   const handleShare = (bowlId: string) => {
-    const url = `https://yourapp.com/bowl/${bowlId}`;
+    const url = `https://chitti-udi.com/bowl/${bowlId}`;
     Share.share({
       message: `Check out this bowl! ${url}`,
       url,
@@ -109,6 +154,8 @@ export default function BowlsScreen() {
     try {
       setLoading(true);
       setError(null);
+      if (!userName) return; // Prevent entry if name is empty
+      user.name = userName;
       // Add user to member list if not already present
       const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
       const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
@@ -202,6 +249,14 @@ export default function BowlsScreen() {
         <SafeAreaView style={styles.modalContent}>
           {/* ID and OwnerID fields removed from input, as they are auto-generated */}
           <Text style={styles.modalLabel}>Owner ID: {deviceId}</Text>
+          {!userName && (
+            <TextInput
+              placeholder="Your Name"
+              value={userName}
+              onChangeText={saveUserName}
+              style={styles.input}
+            />
+          )}
           <TextInput
             placeholder="Bowl Name"
             value={newBowl.name}
@@ -239,6 +294,14 @@ export default function BowlsScreen() {
         <View style={styles.entryModalOverlay}>
           <View style={styles.entryModalContent}>
             <Text style={styles.modalLabel}>Add Entry</Text>
+            {!userName && (
+              <TextInput
+                placeholder="Your Name"
+                value={userName}
+                onChangeText={saveUserName}
+                style={styles.input}
+              />
+            )}
             <TextInput
               placeholder="Enter your entry"
               value={entryText}
