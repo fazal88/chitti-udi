@@ -77,10 +77,11 @@ export default function BowlsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <Text style={styles.headerTitle}>Chitti Udi</Text>
       <View style={styles.addButtonWrapper}>
         <Button
-          title="➕ Add Bowl"
-          color="#7C3AED"
+          title="Add Bowl"
+          color="#7b37ef"
           onPress={() => setModalVisible(true)}
         />
       </View>
@@ -125,12 +126,22 @@ export default function BowlsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#f7f7f7' },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#7C3AED',
+    textAlign: 'center',
+    marginBottom: 18,
+    marginTop: 8,
+    letterSpacing: 1.2,
+  },
   addButtonWrapper: {
-    marginBottom: 12,
-    borderRadius: 24,
+    borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: '#ede9fe',
-    elevation: 2,
+    backgroundColor: '#7C3AED',
+    elevation: 0,
+    height: 60,
+    justifyContent: 'center',
   },
   card: {
     backgroundColor: '#fff',
