@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FlatList, Button, Text, Modal, TextInput, StyleSheet, View, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Device from 'expo-device';
 import uuid from 'react-native-uuid';
+import { firebaseConfig } from '../firebaseConfig';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, onValue, push, set } from 'firebase/database';
 
 interface Bowl {
   id: string;
@@ -25,22 +28,58 @@ const dummyBowls: Bowl[] = [
 ];
 
 export default function BowlsScreen() {
-  const [bowls, setBowls] = useState<Bowl[]>(dummyBowls);
+  const [bowls, setBowls] = useState<Bowl[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const deviceId = Device.modelId || 'unknown-device';
   const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
 
-  const addBowl = () => {
-    const bowlToAdd = {
-      ...newBowl,
-      id: uuid.v4() as string,
-      ownerId: deviceId,
-      memberLimit: Number(newBowl.memberLimit) || 0,
-      inputCount: Number(newBowl.inputCount) || 0,
-    };
-    setBowls([...bowls, bowlToAdd]);
-    setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
-    setModalVisible(false);
+  // Initialize Firebase
+  useEffect(() => {
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const bowlsRef = ref(db, 'bowls');
+    const unsubscribe = onValue(bowlsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const bowlsList = Object.values(data) as Bowl[];
+        setBowls(bowlsList);
+      } else {
+        setBowls([]);
+      }
+      setLoading(false);
+      setError(null);
+    }, (err) => {
+      setError('Failed to load bowls');
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const addBowl = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const app = initializeApp(firebaseConfig);
+      const db = getDatabase(app);
+      const bowlsRef = ref(db, 'bowls');
+      const newBowlRef = push(bowlsRef);
+      const bowlToAdd = {
+        ...newBowl,
+        id: newBowlRef.key || uuid.v4(),
+        ownerId: deviceId,
+        memberLimit: Number(newBowl.memberLimit) || 0,
+        inputCount: Number(newBowl.inputCount) || 0,
+      };
+      await set(newBowlRef, bowlToAdd);
+      setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
+      setModalVisible(false);
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to add bowl');
+      setLoading(false);
+    }
   };
 
   const handleShare = (bowlId: string) => {
@@ -103,12 +142,18 @@ export default function BowlsScreen() {
           onPress={() => setModalVisible(true)}
         />
       </View>
-      <FlatList
-        data={bowls}
-        keyExtractor={(item) => item.id}
-        renderItem={renderBowlItem}
-        contentContainerStyle={{ paddingVertical: 16 }}
-      />
+      {loading ? (
+        <Text style={{ textAlign: 'center', marginTop: 20 }}>Loading bowls...</Text>
+      ) : error ? (
+        <Text style={{ textAlign: 'center', color: 'red', marginTop: 20 }}>{error}</Text>
+      ) : (
+        <FlatList
+          data={bowls}
+          keyExtractor={(item) => item.id}
+          renderItem={renderBowlItem}
+          contentContainerStyle={{ paddingVertical: 16 }}
+        />
+      )}
       <Modal visible={modalVisible} animationType="slide">
         <SafeAreaView style={styles.modalContent}>
           {/* ID and OwnerID fields removed from input, as they are auto-generated */}
