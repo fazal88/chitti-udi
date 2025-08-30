@@ -52,12 +52,25 @@ export default function BowlsScreen() {
     output: '',
   });
   const [userName, setUserName] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = onValue(bowlsRef, (snapshot) => {
+    const unsubscribe = onValue(bowlsRef, async (snapshot) => {
       const data = snapshot.val();
+      let bowlsList: Bowl[] = [];
       if (data) {
-        const bowlsList = Object.values(data) as Bowl[];
+        bowlsList = Object.values(data) as Bowl[];
+        // Filter bowls whose id is present in localstorage
+        const myBowls = await SecureStore.getItemAsync('listMyBowls');
+        let myBowlsArr: string[] = [];
+        if (myBowls) {
+          try {
+            myBowlsArr = JSON.parse(myBowls);
+          } catch {
+            myBowlsArr = [];
+          }
+        }
+        bowlsList = bowlsList.filter(bowl => myBowlsArr.includes(bowl.id));
         setBowls(bowlsList);
       } else {
         setBowls([]);
@@ -235,6 +248,33 @@ export default function BowlsScreen() {
     }
   };
 
+  // Function to manually refresh bowls list
+  const refreshBowls = async () => {
+    setRefreshing(true);
+    const snapshot = await new Promise<any>((resolve) => {
+      onValue(bowlsRef, resolve, { onlyOnce: true });
+    });
+    const data = snapshot.val();
+    let bowlsList: Bowl[] = [];
+    if (data) {
+      bowlsList = Object.values(data) as Bowl[];
+      const myBowls = await SecureStore.getItemAsync('listMyBowls');
+      let myBowlsArr: string[] = [];
+      if (myBowls) {
+        try {
+          myBowlsArr = JSON.parse(myBowls);
+        } catch {
+          myBowlsArr = [];
+        }
+      }
+      bowlsList = bowlsList.filter(bowl => myBowlsArr.includes(bowl.id));
+      setBowls(bowlsList);
+    } else {
+      setBowls([]);
+    }
+    setRefreshing(false);
+  };
+
   const renderBowlItem = ({ item }: { item: Bowl }) => (
     <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}>
       <View style={styles.cardHeader}>
@@ -347,13 +387,18 @@ export default function BowlsScreen() {
       {loading ? (
         <Text style={{ textAlign: 'center', marginTop: 20 }}>Loading bowls...</Text>
       ) : error ? (
-        <Text style={{ textAlign: 'center', color: 'red', marginTop: 20 }}>{error}</Text>
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
+          <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>
+          <Button title="Dismiss" color="#EF4444" onPress={() => setError(null)} />
+        </View>
       ) : (
         <FlatList
           data={bowls}
           keyExtractor={(item) => item.id}
           renderItem={renderBowlItem}
           contentContainerStyle={{ paddingVertical: 16 }}
+          refreshing={refreshing}
+          onRefresh={refreshBowls}
         />
       )}
       <Modal visible={modalVisible} animationType="slide">
