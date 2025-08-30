@@ -6,8 +6,8 @@ import uuid from 'react-native-uuid';
 import { firebaseConfig } from '../firebaseConfig';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, onValue, push, set } from 'firebase/database';
-import * as Notifications from 'expo-notifications';
 import * as SecureStore from 'expo-secure-store';
+import * as Linking from 'expo-linking';
 
 // Initialize Firebase app and database once
 const app = initializeApp(firebaseConfig);
@@ -16,7 +16,6 @@ const bowlsRef = ref(db, 'bowls');
 
 interface Member {
   id: string;
-  firebaseToken: string;
   name: string;
 }
 
@@ -40,26 +39,21 @@ export default function BowlsScreen() {
   const [entryModalVisible, setEntryModalVisible] = useState(false);
   const [entryText, setEntryText] = useState('');
   const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
-  const deviceId = Device.modelId || 'unknown-device';
-  const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0, output: '' });
-  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [deviceId, setDeviceId] = useState<string>('unknown-device');
+  const [newBowl, setNewBowl] = useState<Bowl>({
+    id: '',
+    name: '',
+    description: '',
+    ownerId: deviceId,
+    listMembers: [],
+    listEntries: [],
+    memberLimit: 0,
+    inputCount: 0,
+    output: '',
+  });
   const [userName, setUserName] = useState('');
 
-  // Get and store FCM token on mount
   useEffect(() => {
-    async function getAndStoreFcmToken() {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        const tokenData = await Notifications.getExpoPushTokenAsync();
-        const token = tokenData.data;
-        console.log('FCM Token:', token);
-        setFcmToken(token);
-        await SecureStore.setItemAsync('fcmToken', token);
-        // Update user data with new token
-        setUser(prev => ({ ...prev, firebaseToken: token }));
-      }
-    }
-    getAndStoreFcmToken();
     const unsubscribe = onValue(bowlsRef, (snapshot) => {
       const data = snapshot.val();
       if (data) {
@@ -75,18 +69,6 @@ export default function BowlsScreen() {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, []);
-
-  // Use stored token if available
-  useEffect(() => {
-    async function loadToken() {
-      const token = await SecureStore.getItemAsync('fcmToken');
-      if (token) {
-        setFcmToken(token);
-        setUser(prev => ({ ...prev, firebaseToken: token }));
-      }
-    }
-    loadToken();
   }, []);
 
   // Load user name from SecureStore
@@ -107,9 +89,27 @@ export default function BowlsScreen() {
   // Simulate user info (replace with real auth/device info as needed)
   const [user, setUser] = useState({
     id: deviceId,
-    firebaseToken: fcmToken || 'dummy-token',
     name: userName,
   });
+
+  // Generate and persist unique device ID on first launch
+  useEffect(() => {
+    async function getOrCreateDeviceId() {
+      let id = await SecureStore.getItemAsync('deviceId');
+      if (!id) {
+        id = uuid.v4().toString();
+        await SecureStore.setItemAsync('deviceId', id);
+      }
+      setDeviceId(id);
+    }
+    getOrCreateDeviceId();
+  }, []);
+
+  // When deviceId changes, update newBowl and user
+  useEffect(() => {
+    setNewBowl((prev) => ({ ...prev, ownerId: deviceId }));
+    setUser((prev) => ({ ...prev, id: deviceId }));
+  }, [deviceId]);
 
   const addBowl = async () => {
     try {
@@ -125,6 +125,22 @@ export default function BowlsScreen() {
         inputCount: Number(newBowl.inputCount) || 0,
       };
       await set(newBowlRef, bowlToAdd);
+
+      // Save bowl id to local storage as listMyBowls
+      let myBowls = await SecureStore.getItemAsync('listMyBowls');
+      let myBowlsArr: string[] = [];
+      if (myBowls) {
+        try {
+          myBowlsArr = JSON.parse(myBowls);
+        } catch {
+          myBowlsArr = [];
+        }
+      }
+      if (bowlToAdd.id && !myBowlsArr.includes(bowlToAdd.id)) {
+        myBowlsArr.push(bowlToAdd.id);
+        await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
+      }
+
       setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
       setModalVisible(false);
       setLoading(false);
@@ -134,26 +150,22 @@ export default function BowlsScreen() {
     }
   };
 
+  // Juggle logic: randomly pick one entry from listEntries and store in output
+  const handleJuggle = async (bowl: Bowl) => {
+    if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
+      setError('No entries to juggle!');
+      return;
+    }
+    const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
+    const result = bowl.listEntries[randomIndex];
 
-// Juggle logic: randomly pick one entry from listEntries and store in output
-const handleJuggle = async (bowl: Bowl) => {
-  if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
-    setError('No entries to juggle!');
-    return;
-  }
-  const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
-  const result = bowl.listEntries[randomIndex];
-
-  // Update bowl output in Firebase
-  const bowlRef = ref(db, `bowls/${bowl.id}`);
-  await set(bowlRef, {
-    ...bowl,
-    output: result,
-  });
-
-  // Optionally show result to user (e.g., Toast, Alert, etc.)
-  // setError(`Juggle result: ${result}`);
-};
+    // Update bowl output in Firebase
+    const bowlRef = ref(db, `bowls/${bowl.id}`);
+    await set(bowlRef, {
+      ...bowl,
+      output: result,
+    });
+  };
 
   const handleShare = (bowlId: string) => {
     const url = `https://chitti-udi.com/bowl/${bowlId}`;
@@ -172,104 +184,155 @@ const handleJuggle = async (bowl: Bowl) => {
   };
 
   // Add entry to bowl and update Firebase
-const handleAddEntry = async () => {
-  if (!selectedBowl) return;
-  try {
-    setLoading(true);
-    setError(null);
-    if (!userName) return; // Prevent entry if name is empty
-    user.name = userName;
+  const handleAddEntry = async () => {
+    if (!selectedBowl) return;
+    try {
+      setLoading(true);
+      setError(null);
+      if (!userName) return; // Prevent entry if name is empty
+      user.name = userName;
 
-    // Add user to member list if not already present
-    const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
-    const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
+      // Add user to member list if not already present
+      const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
+      const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
 
-    // Prevent duplicate entry
-    const entries = Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : [];
-    if (entries.includes(entryText.trim())) {
-      setError('Duplicate entry not allowed.');
+      // Prevent duplicate entry
+      const entries = Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : [];
+      if (entries.includes(entryText.trim())) {
+        setError('Duplicate entry not allowed.');
+        setLoading(false);
+        return;
+      }
+
+      // Add new entry
+      const updatedEntries = [...entries, entryText.trim()];
+
+      // Update bowl in Firebase
+      const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
+      await set(bowlRef, {
+        ...selectedBowl,
+        listMembers: updatedMembers,
+        listEntries: updatedEntries,
+      });
+      setEntryModalVisible(false);
       setLoading(false);
-      return;
+    } catch (err) {
+      setError('Failed to add entry');
+      setLoading(false);
     }
+  };
 
-    // Add new entry
-    const updatedEntries = [...entries, entryText.trim()];
+  const handleDeleteBowl = async (bowlId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const bowlRef = ref(db, `bowls/${bowlId}`);
+      await set(bowlRef, null); // Remove bowl from Firebase
+      setLoading(false);
+    } catch (err) {
+      setError('Failed to delete bowl');
+      setLoading(false);
+    }
+  };
 
-    // Update bowl in Firebase
-    const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
-    await set(bowlRef, {
-      ...selectedBowl,
-      listMembers: updatedMembers,
-      listEntries: updatedEntries,
-    });
-    setEntryModalVisible(false);
-    setLoading(false);
-  } catch (err) {
-    setError('Failed to add entry');
-    setLoading(false);
-  }
-};
-
-const renderBowlItem = ({ item }: { item: Bowl }) => (
-  <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}>
-    <View style={styles.cardHeader}>
-      <Text style={styles.bowlEmoji}>⏳</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.cardTitle}>{item.name}</Text>
-        <Text style={styles.cardDescription}>{item.description}</Text>
+  const renderBowlItem = ({ item }: { item: Bowl }) => (
+    <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.bowlEmoji}>⏳</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Text style={styles.cardDescription}>{item.description}</Text>
+        </View>
+        {/* Show delete button only if ownerId matches deviceId */}
+        {item.ownerId === deviceId && (
+          <Button
+            title="🗑️"
+            color="#FFFFFF"
+            onPress={() => handleDeleteBowl(item.id)}
+          />
+        )}
       </View>
-    </View>
-    {/* ...other card rows... */}
-    <View style={styles.cardRow}>
-      <Text style={styles.iconText}>👤 Owner:</Text>
-      <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
-    </View>
-    <View style={styles.cardRow}>
-      <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
-      <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
-    </View>
-    <View style={styles.cardRow}>
-      <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
-      <Text style={styles.limitText}>{item.memberLimit}</Text>
-    </View>
-    <View style={styles.cardRow}>
-      <Text style={styles.iconText}>📋 Total entries:</Text>
-      <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
-    </View>
-    <View style={styles.cardRow}>
-      <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
-      <Text style={styles.countText}>
-        {item.inputCount > 0 ? item.inputCount : 'no limit'}
-      </Text>
-    </View>
-    {/* Show juggle result if available */}
-    {item.output && (
       <View style={styles.cardRow}>
-        <Text style={styles.iconText}>🎲 Result:</Text>
-        <Text style={styles.countText}>{item.output}</Text>
+        <Text style={styles.iconText}>👤 Owner:</Text>
+        <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
       </View>
-    )}
-    <View style={styles.shareButtonRow}>
-      <Button
-        title="Juggle"
-        color="#ff0d00"
-        onPress={() => handleJuggle(item)}
-      />
-      <View style={{ width: 8 }} />
-      <Button
-        title="Add Entry"
-        color="#10B981"
-        onPress={() => openEntryModal(item)}
-      />
-      <View style={{ width: 8 }} />
-      <Button
-        title="Share"
-        color="#2563EB"
-        onPress={() => handleShare(item.id)}
-      />
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
+        <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
+      </View>
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
+        <Text style={styles.limitText}>{item.memberLimit}</Text>
+      </View>
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>📋 Total entries:</Text>
+        <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
+      </View>
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
+        <Text style={styles.countText}>
+          {item.inputCount > 0 ? item.inputCount : 'no limit'}
+        </Text>
+      </View>
+      {/* Show juggle result if available */}
+      {item.output && (
+        <View style={styles.cardRow}>
+          <Text style={styles.iconText}>🎲 Result:</Text>
+          <Text style={styles.countText}>{item.output}</Text>
+        </View>
+      )}
+      <View style={styles.shareButtonRow}>
+        {/* Show juggle button only if ownerId matches deviceId */}
+        {item.ownerId === deviceId && (
+          <>
+            <Button
+              title="Juggle"
+              color="#ff0d00"
+              onPress={() => handleJuggle(item)}
+            />
+            <View style={{ width: 8 }} />
+          </>
+        )}
+        <Button
+          title="Add Entry"
+          color="#10B981"
+          onPress={() => openEntryModal(item)}
+        />
+        <View style={{ width: 8 }} />
+        <Button
+          title="Share"
+          color="#2563EB"
+          onPress={() => handleShare(item.id)}
+        />
+      </View>
     </View>
-  </View>
-);
+  );
+
+  useEffect(() => {
+    const handleDeepLink = async (event: Linking.EventType) => {
+      const url = event.url ?? '';
+      const match = url.match(/bowl\/([a-zA-Z0-9_-]+)/);
+      if (match && match[1]) {
+        const bowlId = match[1];
+        // Save bowlId to device storage
+        await SecureStore.setItemAsync('lastBowlId', bowlId);
+        setError(`Bowl ID ${bowlId} saved from deep link!`);
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    (async () => {
+      const initialUrl = await Linking.getInitialURL();
+      if (initialUrl) {
+        handleDeepLink({ url: initialUrl });
+      }
+    })();
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -295,7 +358,6 @@ const renderBowlItem = ({ item }: { item: Bowl }) => (
       )}
       <Modal visible={modalVisible} animationType="slide">
         <SafeAreaView style={styles.modalContent}>
-          {/* ID and OwnerID fields removed from input, as they are auto-generated */}
           <Text style={styles.modalLabel}>Owner ID: {deviceId}</Text>
           {!userName && (
             <TextInput
