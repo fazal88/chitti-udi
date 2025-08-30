@@ -29,6 +29,7 @@ interface Bowl {
   listEntries: string[];
   memberLimit: number;
   inputCount: number;
+  output?: string;
 }
 
 export default function BowlsScreen() {
@@ -40,7 +41,7 @@ export default function BowlsScreen() {
   const [entryText, setEntryText] = useState('');
   const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
   const deviceId = Device.modelId || 'unknown-device';
-  const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
+  const [newBowl, setNewBowl] = useState<Bowl>({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0, output: '' });
   const [fcmToken, setFcmToken] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
 
@@ -51,6 +52,7 @@ export default function BowlsScreen() {
       if (status === 'granted') {
         const tokenData = await Notifications.getExpoPushTokenAsync();
         const token = tokenData.data;
+        console.log('FCM Token:', token);
         setFcmToken(token);
         await SecureStore.setItemAsync('fcmToken', token);
         // Update user data with new token
@@ -132,6 +134,27 @@ export default function BowlsScreen() {
     }
   };
 
+
+// Juggle logic: randomly pick one entry from listEntries and store in output
+const handleJuggle = async (bowl: Bowl) => {
+  if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
+    setError('No entries to juggle!');
+    return;
+  }
+  const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
+  const result = bowl.listEntries[randomIndex];
+
+  // Update bowl output in Firebase
+  const bowlRef = ref(db, `bowls/${bowl.id}`);
+  await set(bowlRef, {
+    ...bowl,
+    output: result,
+  });
+
+  // Optionally show result to user (e.g., Toast, Alert, etc.)
+  // setError(`Juggle result: ${result}`);
+};
+
   const handleShare = (bowlId: string) => {
     const url = `https://chitti-udi.com/bowl/${bowlId}`;
     Share.share({
@@ -149,79 +172,104 @@ export default function BowlsScreen() {
   };
 
   // Add entry to bowl and update Firebase
-  const handleAddEntry = async () => {
-    if (!selectedBowl) return;
-    try {
-      setLoading(true);
-      setError(null);
-      if (!userName) return; // Prevent entry if name is empty
-      user.name = userName;
-      // Add user to member list if not already present
-      const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
-      const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
-      // Add new entry
-      const updatedEntries = [...(Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : []), entryText];
-      // Update bowl in Firebase
-      const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
-      await set(bowlRef, {
-        ...selectedBowl,
-        listMembers: updatedMembers,
-        listEntries: updatedEntries,
-      });
-      setEntryModalVisible(false);
-      setLoading(false);
-    } catch (err) {
-      setError('Failed to add entry');
-      setLoading(false);
-    }
-  };
+const handleAddEntry = async () => {
+  if (!selectedBowl) return;
+  try {
+    setLoading(true);
+    setError(null);
+    if (!userName) return; // Prevent entry if name is empty
+    user.name = userName;
 
-  const renderBowlItem = ({ item }: { item: Bowl }) => (
-    <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}> 
-      <View style={styles.cardHeader}>
-        <Text style={styles.bowlEmoji}>🐟🥣</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
-          <Text style={styles.cardDescription}>{item.description}</Text>
-        </View>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.iconText}>👤 Owner:</Text>
-        <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
-        <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
-        <Text style={styles.limitText}>{item.memberLimit}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.iconText}>📋 Total entries:</Text>
-        <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
-      </View>
-      <View style={styles.cardRow}>
-        <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
-        <Text style={styles.countText}>
-          {item.inputCount > 0 ? item.inputCount : 'no limit'}
-        </Text>
-      </View>
-      <View style={styles.shareButtonRow}>
-        <Button
-          title="Add Entry"
-          color="#10B981"
-          onPress={() => openEntryModal(item)}
-        />
-        <View style={{ width: 8 }} />
-        <Button
-          title="Share"
-          color="#2563EB"
-          onPress={() => handleShare(item.id)}
-        />
+    // Add user to member list if not already present
+    const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
+    const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
+
+    // Prevent duplicate entry
+    const entries = Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : [];
+    if (entries.includes(entryText.trim())) {
+      setError('Duplicate entry not allowed.');
+      setLoading(false);
+      return;
+    }
+
+    // Add new entry
+    const updatedEntries = [...entries, entryText.trim()];
+
+    // Update bowl in Firebase
+    const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
+    await set(bowlRef, {
+      ...selectedBowl,
+      listMembers: updatedMembers,
+      listEntries: updatedEntries,
+    });
+    setEntryModalVisible(false);
+    setLoading(false);
+  } catch (err) {
+    setError('Failed to add entry');
+    setLoading(false);
+  }
+};
+
+const renderBowlItem = ({ item }: { item: Bowl }) => (
+  <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}>
+    <View style={styles.cardHeader}>
+      <Text style={styles.bowlEmoji}>⏳</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.cardTitle}>{item.name}</Text>
+        <Text style={styles.cardDescription}>{item.description}</Text>
       </View>
     </View>
-  );
+    {/* ...other card rows... */}
+    <View style={styles.cardRow}>
+      <Text style={styles.iconText}>👤 Owner:</Text>
+      <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
+    </View>
+    <View style={styles.cardRow}>
+      <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
+      <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
+    </View>
+    <View style={styles.cardRow}>
+      <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
+      <Text style={styles.limitText}>{item.memberLimit}</Text>
+    </View>
+    <View style={styles.cardRow}>
+      <Text style={styles.iconText}>📋 Total entries:</Text>
+      <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
+    </View>
+    <View style={styles.cardRow}>
+      <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
+      <Text style={styles.countText}>
+        {item.inputCount > 0 ? item.inputCount : 'no limit'}
+      </Text>
+    </View>
+    {/* Show juggle result if available */}
+    {item.output && (
+      <View style={styles.cardRow}>
+        <Text style={styles.iconText}>🎲 Result:</Text>
+        <Text style={styles.countText}>{item.output}</Text>
+      </View>
+    )}
+    <View style={styles.shareButtonRow}>
+      <Button
+        title="Juggle"
+        color="#ff0d00"
+        onPress={() => handleJuggle(item)}
+      />
+      <View style={{ width: 8 }} />
+      <Button
+        title="Add Entry"
+        color="#10B981"
+        onPress={() => openEntryModal(item)}
+      />
+      <View style={{ width: 8 }} />
+      <Button
+        title="Share"
+        color="#2563EB"
+        onPress={() => handleShare(item.id)}
+      />
+    </View>
+  </View>
+);
 
   return (
     <SafeAreaView style={styles.container}>
