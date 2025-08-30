@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FlatList, Button, Text, Modal, TextInput, StyleSheet, View, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Device from 'expo-device';
 import uuid from 'react-native-uuid';
 import { firebaseConfig } from '../firebaseConfig';
 import { initializeApp } from 'firebase/app';
@@ -354,9 +353,23 @@ export default function BowlsScreen() {
       const match = url.match(/bowl\/([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         const bowlId = match[1];
-        // Save bowlId to device storage
-        await SecureStore.setItemAsync('lastBowlId', bowlId);
+        // Save bowlId to device storage as listMyBowls
+        let myBowls = await SecureStore.getItemAsync('listMyBowls');
+        let myBowlsArr: string[] = [];
+        if (myBowls) {
+          try {
+            myBowlsArr = JSON.parse(myBowls);
+          } catch {
+            myBowlsArr = [];
+          }
+        }
+        if (!myBowlsArr.includes(bowlId)) {
+          myBowlsArr.push(bowlId);
+          await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
+        }
         setError(`Bowl ID ${bowlId} saved from deep link!`);
+        // Refresh bowls list
+        refreshBowls();
       }
     };
 
