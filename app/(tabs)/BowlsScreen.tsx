@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { FlatList, Button, Text, Modal, TextInput, StyleSheet, View, Share } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
+import * as SecureStore from 'expo-secure-store';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, onValue, push, ref, set } from 'firebase/database';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, FlatList, Modal, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import uuid from 'react-native-uuid';
 import { firebaseConfig } from '../firebaseConfig';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue, push, set } from 'firebase/database';
-import * as SecureStore from 'expo-secure-store';
-import * as Linking from 'expo-linking';
 
 // Initialize Firebase app and database once
 const app = initializeApp(firebaseConfig);
@@ -51,6 +52,7 @@ export default function BowlsScreen() {
     output: '',
   });
   const [userName, setUserName] = useState('');
+  const [success, setSuccess] = useState<string | null>(null); // For success feedback
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -275,20 +277,24 @@ export default function BowlsScreen() {
   };
 
   const renderBowlItem = ({ item }: { item: Bowl }) => (
-    <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}>
+    <View style={[styles.card, { borderLeftColor: '#7C3AED', borderLeftWidth: 6 }]}> 
       <View style={styles.cardHeader}>
         <Text style={styles.bowlEmoji}>⏳</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.cardTitle}>{item.name}</Text>
           <Text style={styles.cardDescription}>{item.description}</Text>
         </View>
-        {/* Show delete button only if ownerId matches deviceId */}
+        {/* Show delete icon only if ownerId matches deviceId */}
         {item.ownerId === deviceId && (
-          <Button
-            title="🗑️"
-            color="#FFFFFF"
-            onPress={() => handleDeleteBowl(item.id)}
-          />
+          <TouchableOpacity
+            style={{ marginLeft: 8, backgroundColor: '#F87171', borderRadius: 20, padding: 4 }}
+            onPress={() => Alert.alert('Delete Bowl', 'Are you sure you want to delete this bowl?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete', style: 'destructive', onPress: () => handleDeleteBowl(item.id) },
+            ])}
+          >
+            <Ionicons name="trash" size={22} color="#fff" />
+          </TouchableOpacity>
         )}
       </View>
       <View style={styles.cardRow}>
@@ -323,26 +329,19 @@ export default function BowlsScreen() {
       <View style={styles.shareButtonRow}>
         {/* Show juggle button only if ownerId matches deviceId */}
         {item.ownerId === deviceId && (
-          <>
-            <Button
-              title="Juggle"
-              color="#ff0d00"
-              onPress={() => handleJuggle(item)}
-            />
-            <View style={{ width: 8 }} />
-          </>
+          <TouchableOpacity style={styles.iconButton} onPress={() => handleJuggle(item)}>
+            <Ionicons name="shuffle" size={22} color="#ff0d00" />
+            <Text style={styles.iconButtonText}>Juggle</Text>
+          </TouchableOpacity>
         )}
-        <Button
-          title="Add Entry"
-          color="#10B981"
-          onPress={() => openEntryModal(item)}
-        />
-        <View style={{ width: 8 }} />
-        <Button
-          title="Share"
-          color="#2563EB"
-          onPress={() => handleShare(item.id)}
-        />
+        <TouchableOpacity style={styles.iconButton} onPress={() => openEntryModal(item)}>
+          <Ionicons name="add-circle" size={22} color="#10B981" />
+          <Text style={styles.iconButtonText}>Add Entry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.iconButton} onPress={() => handleShare(item.id)}>
+          <Ionicons name="share-social" size={22} color="#2563EB" />
+          <Text style={styles.iconButtonText}>Share</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -390,13 +389,17 @@ export default function BowlsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.headerTitle}>Chitti Udi</Text>
-      <View style={styles.addButtonWrapper}>
-        <Button
-          title="Add Bowl"
-          color="#7b37ef"
+      <Text style={styles.headerSubtitle}>Create, join, and juggle bowls with friends!</Text>
+      <View style={[styles.addButtonWrapper, { width: '100%', marginBottom: 8 }]}>
+        <TouchableOpacity
+          style={[styles.fabButton, { width: '100%', justifyContent: 'center' }]}
           onPress={() => setModalVisible(true)}
-        />
+        >
+          <Ionicons name="add" size={28} color="#fff" />
+          <Text style={styles.fabButtonText}>Add Bowl</Text>
+        </TouchableOpacity>
       </View>
+      {/* Show loading, error, or success messages */}
       {loading ? (
         <Text style={{ textAlign: 'center', marginTop: 20 }}>Loading bowls...</Text>
       ) : error ? (
@@ -404,27 +407,26 @@ export default function BowlsScreen() {
           <Text style={{ color: 'red', marginBottom: 8 }}>{error}</Text>
           <Button title="Dismiss" color="#EF4444" onPress={() => setError(null)} />
         </View>
+      ) : success ? (
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
+          <Text style={{ color: '#10B981', marginBottom: 8 }}>{success}</Text>
+          <Button title="OK" color="#10B981" onPress={() => setSuccess(null)} />
+        </View>
       ) : (
         <FlatList
           data={bowls}
           keyExtractor={(item) => item.id}
           renderItem={renderBowlItem}
-          contentContainerStyle={{ paddingVertical: 16 }}
+          contentContainerStyle={{ paddingVertical: 8 }}
           refreshing={refreshing}
           onRefresh={refreshBowls}
         />
       )}
+      {/* Modal for adding a new bowl */}
       <Modal visible={modalVisible} animationType="slide">
         <SafeAreaView style={styles.modalContent}>
-          <Text style={styles.modalLabel}>Owner ID: {deviceId}</Text>
-          {!userName && (
-            <TextInput
-              placeholder="Your Name"
-              value={userName}
-              onChangeText={saveUserName}
-              style={styles.input}
-            />
-          )}
+          <Text style={styles.modalLabel}>Add Details</Text>
+          <Text style={styles.helperText}>Your name will be visible to other bowl members.</Text>
           <TextInput
             placeholder="Bowl Name"
             value={newBowl.name}
@@ -451,17 +453,26 @@ export default function BowlsScreen() {
             style={styles.input}
             keyboardType="numeric"
           />
+          <Text style={styles.helperText}>Tip: Share your bowl with friends so they can join and add entries!</Text>
           <View style={styles.modalButtonRow}>
-            <Button title="Add" color="#10B981" onPress={addBowl} />
+            <TouchableOpacity style={styles.modalActionButton} onPress={addBowl}>
+              <Ionicons name="checkmark-circle" size={22} color="#fff" />
+              <Text style={styles.modalActionText}>Add</Text>
+            </TouchableOpacity>
             <View style={{ width: 12 }} />
-            <Button title="Cancel" color="#EF4444" onPress={() => setModalVisible(false)} />
+            <TouchableOpacity style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} onPress={() => setModalVisible(false)}>
+              <Ionicons name="close-circle" size={22} color="#fff" />
+              <Text style={styles.modalActionText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </Modal>
+      {/* Modal for adding an entry to a bowl */}
       <Modal visible={entryModalVisible} animationType="slide" transparent>
         <View style={styles.entryModalOverlay}>
           <View style={styles.entryModalContent}>
             <Text style={styles.modalLabel}>Add Entry</Text>
+            <Text style={styles.helperText}>Add your suggestion or input to this bowl.</Text>
             {!userName && (
               <TextInput
                 placeholder="Your Name"
@@ -477,9 +488,15 @@ export default function BowlsScreen() {
               style={styles.input}
             />
             <View style={styles.modalButtonRow}>
-              <Button title="Submit" color="#10B981" onPress={handleAddEntry} disabled={!entryText.trim()} />
+              <TouchableOpacity style={styles.modalActionButton} onPress={handleAddEntry} disabled={!entryText.trim()}>
+                <Ionicons name="checkmark-circle" size={22} color="#fff" />
+                <Text style={styles.modalActionText}>Submit</Text>
+              </TouchableOpacity>
               <View style={{ width: 12 }} />
-              <Button title="Cancel" color="#EF4444" onPress={() => setEntryModalVisible(false)} />
+              <TouchableOpacity style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} onPress={() => setEntryModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#fff" />
+                <Text style={styles.modalActionText}>Cancel</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -495,17 +512,40 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#7C3AED',
     textAlign: 'center',
-    marginBottom: 18,
+    marginBottom: 4,
     marginTop: 8,
     letterSpacing: 1.2,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 18,
   },
   addButtonWrapper: {
     borderRadius: 18,
     overflow: 'hidden',
-    backgroundColor: '#7C3AED',
+    backgroundColor: 'transparent',
     elevation: 0,
     height: 60,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7C3AED',
+    borderRadius: 30,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    elevation: 2,
+  },
+  fabButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginLeft: 8,
   },
   card: {
     backgroundColor: '#fff',
@@ -548,12 +588,43 @@ const styles = StyleSheet.create({
   cardSection: { fontSize: 15, fontWeight: '600', marginTop: 8, marginBottom: 4 },
   modalContent: { flex: 1, justifyContent: 'center', padding: 16 },
   modalLabel: { fontSize: 15, color: '#7C3AED', marginBottom: 8, fontWeight: 'bold' },
+  helperText: { fontSize: 13, color: '#6B7280', marginBottom: 8 },
   input: { borderWidth: 1, borderColor: '#ccc', marginBottom: 12, padding: 8, borderRadius: 4 },
   modalButtonRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
+  modalActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#10B981',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  modalActionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+    marginLeft: 6,
+  },
   shareButtonRow: {
     marginTop: 10,
     justifyContent: 'flex-end',
     flexDirection: 'row',
+    gap: 8,
+  },
+  iconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  iconButtonText: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    color: '#444',
+    fontSize: 15,
   },
   limitText: {
     fontSize: 14,
