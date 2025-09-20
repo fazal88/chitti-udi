@@ -325,6 +325,64 @@ export default function BowlsScreen() {
       : bowl.ownerId === user.id; // Only owner can shuffle for other types
   };
 
+  // Delete individual entry (owner only)
+  const handleDeleteEntry = async (bowl: Bowl, entryId: string) => {
+    // Only allow bowl owner to delete entries
+    if (bowl.ownerId !== user.id) {
+      Alert.alert(
+        'Access Denied',
+        'Only the bowl owner can delete entries.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Delete Entry',
+      'Are you sure you want to delete this entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              setError(null);
+              
+              // Filter out the entry to delete
+              const updatedEntries = Array.isArray(bowl.listEntries) 
+                ? bowl.listEntries.filter(entry => entry.id !== entryId)
+                : [];
+              
+              const updatedBowl = {
+                ...bowl,
+                listEntries: updatedEntries,
+              };
+              
+              // Update bowl in Firebase
+              const bowlRef = ref(db, `bowls/${bowl.id}`);
+              await set(bowlRef, updatedBowl);
+              
+              // Update local state to reflect the change immediately
+              setSelectedBowl(updatedBowl);
+              
+              // Also update the bowls list to keep everything in sync
+              setBowls(prevBowls => 
+                prevBowls.map(b => b.id === bowl.id ? updatedBowl : b)
+              );
+              
+              setLoading(false);
+            } catch {
+              setError('Failed to delete entry');
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const handleShare = (bowlId: string) => {
     const url = `https://chitti-udi.com/bowl/${bowlId}`;
     Share.share({
@@ -375,11 +433,12 @@ export default function BowlsScreen() {
       const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
       const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
 
-      // Check input count limit per user if it's set
+      // Check input count limit per user if it's set (but not for bowl owners)
       const entries = Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : [];
       const userEntryCount = entries.filter(entry => entry.userId === user.id).length;
+      const isOwner = selectedBowl.ownerId === user.id;
       
-      if (selectedBowl.inputCount > 0 && userEntryCount >= selectedBowl.inputCount) {
+      if (!isOwner && selectedBowl.inputCount > 0 && userEntryCount >= selectedBowl.inputCount) {
         Alert.alert(
           'Entry Limit Reached',
           `You have already added your maximum allowed entries (${selectedBowl.inputCount}). You cannot add more entries to this bowl.`,
@@ -895,8 +954,21 @@ export default function BowlsScreen() {
               <ScrollView style={styles.scrollableList} showsVerticalScrollIndicator={true}>
                 {selectedBowl.listEntries.map((entry, index) => (
                   <View key={index} style={styles.listItem}>
-                    <Text style={styles.listItemText}>{entry.text}</Text>
-                    <Text style={styles.entryUserText}>- {entry.userName}</Text>
+                    <View style={styles.entryContent}>
+                      <View style={styles.entryTextContainer}>
+                        <Text style={styles.listItemText}>{entry.text}</Text>
+                        <Text style={styles.entryUserText}>- {entry.userName}</Text>
+                      </View>
+                      {/* Show delete button only for bowl owner */}
+                      {selectedBowl.ownerId === user.id && (
+                        <TouchableOpacity
+                          style={styles.deleteEntryButton}
+                          onPress={() => handleDeleteEntry(selectedBowl, entry.id)}
+                        >
+                          <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   </View>
                 ))}
               </ScrollView>
@@ -1168,5 +1240,22 @@ const styles = StyleSheet.create({
   },
   selectedTypeOptionDescription: {
     color: '#8B5CF6',
+  },
+  entryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  entryTextContainer: {
+    flex: 1,
+  },
+  deleteEntryButton: {
+    padding: 8,
+    marginLeft: 12,
+    backgroundColor: '#FEF2F2',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FECACA',
   },
 });
