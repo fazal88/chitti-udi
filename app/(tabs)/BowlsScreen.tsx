@@ -397,9 +397,11 @@ export default function BowlsScreen() {
       // Only show entry modal if bowl is newly added
       if (!bowlAlreadyExists) {
         setSelectedBowl(bowlData);
-        setEntryText('');
-        setEntryModalVisible(true);
-        setSuccess(`Successfully joined "${bowlData.name}"! Add your entry below.`);
+        // setEntryText('');
+        // setEntryModalVisible(true);
+        // setSuccess(`Successfully joined "${bowlData.name}"! Add your entry below.`);
+      } else {
+        // setSuccess(`You're already part of "${bowlData.name}" bowl.`);
       }
       
       setLoading(false);
