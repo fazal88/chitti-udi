@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, onValue, push, ref, set } from 'firebase/database';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, FlatList, Modal, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Button, FlatList, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import uuid from 'react-native-uuid';
 import { firebaseConfig } from '../firebaseConfig';
@@ -24,6 +24,7 @@ interface Bowl {
   name: string;
   description: string;
   ownerId: string;
+  ownerName: string;
   listMembers: Member[];
   listEntries: string[];
   memberLimit: number;
@@ -37,21 +38,24 @@ export default function BowlsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [entryModalVisible, setEntryModalVisible] = useState(false);
+  const [membersModalVisible, setMembersModalVisible] = useState(false);
+  const [entriesModalVisible, setEntriesModalVisible] = useState(false);
   const [entryText, setEntryText] = useState('');
   const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
   const [deviceId, setDeviceId] = useState<string>('unknown-device');
+  const [userName, setUserName] = useState('');
   const [newBowl, setNewBowl] = useState<Bowl>({
     id: '',
     name: '',
     description: '',
     ownerId: deviceId,
+    ownerName: userName,
     listMembers: [],
     listEntries: [],
     memberLimit: 0,
     inputCount: 0,
     output: '',
   });
-  const [userName, setUserName] = useState('');
   const [success, setSuccess] = useState<string | null>(null); // For success feedback
   const [refreshing, setRefreshing] = useState(false);
 
@@ -125,6 +129,11 @@ export default function BowlsScreen() {
     setUser((prev) => ({ ...prev, id: deviceId }));
   }, [deviceId]);
 
+  // When userName changes, update newBowl ownerName
+  useEffect(() => {
+    setNewBowl((prev) => ({ ...prev, ownerName: userName }));
+  }, [userName]);
+
   const addBowl = async () => {
     try {
       setLoading(true);
@@ -135,6 +144,7 @@ export default function BowlsScreen() {
         ...newBowl,
         id: newBowlRef.key || uuid.v4(),
         ownerId: deviceId,
+        ownerName: userName,
         memberLimit: Number(newBowl.memberLimit) || 0,
         inputCount: Number(newBowl.inputCount) || 0,
       };
@@ -155,7 +165,7 @@ export default function BowlsScreen() {
         await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
       }
 
-      setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
+      setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, ownerName: userName, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
       setModalVisible(false);
       setLoading(false);
     } catch (err) {
@@ -195,6 +205,18 @@ export default function BowlsScreen() {
     setSelectedBowl(bowl);
     setEntryText('');
     setEntryModalVisible(true);
+  };
+
+  // Show members modal
+  const openMembersModal = (bowl: Bowl) => {
+    setSelectedBowl(bowl);
+    setMembersModalVisible(true);
+  };
+
+  // Show entries modal
+  const openEntriesModal = (bowl: Bowl) => {
+    setSelectedBowl(bowl);
+    setEntriesModalVisible(true);
   };
 
   // Add entry to bowl and update Firebase
@@ -299,20 +321,22 @@ export default function BowlsScreen() {
       </View>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>👤 Owner:</Text>
-        <Text style={styles.cardSubtitle}>{item.ownerId}</Text>
+        <Text style={styles.cardSubtitle}>{item.ownerName || item.ownerId}</Text>
       </View>
-      <View style={styles.cardRow}>
+      <TouchableOpacity style={styles.cardRow} onPress={() => openMembersModal(item)}>
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
         <Text style={styles.countText}>{Array.isArray(item.listMembers) ? item.listMembers.length : 0}</Text>
-      </View>
+        <Ionicons name="eye" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
+      </TouchableOpacity>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
         <Text style={styles.limitText}>{item.memberLimit}</Text>
       </View>
-      <View style={styles.cardRow}>
+      <TouchableOpacity style={styles.cardRow} onPress={() => openEntriesModal(item)}>
         <Text style={styles.iconText}>📋 Total entries:</Text>
         <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
-      </View>
+        <Ionicons name="eye" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
+      </TouchableOpacity>
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
         <Text style={styles.countText}>
@@ -331,16 +355,15 @@ export default function BowlsScreen() {
         {item.ownerId === deviceId && (
           <TouchableOpacity style={styles.iconButton} onPress={() => handleJuggle(item)}>
             <Ionicons name="shuffle" size={22} color="#ff0d00" />
-            <Text style={styles.iconButtonText}>Juggle</Text>
+            <Text style={styles.iconButtonText}>Shuffle</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.iconButton} onPress={() => openEntryModal(item)}>
           <Ionicons name="add-circle" size={22} color="#10B981" />
           <Text style={styles.iconButtonText}>Add Entry</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconButton} onPress={() => handleShare(item.id)}>
+        <TouchableOpacity style={[styles.iconButton,{backgroundColor:'transparent'}]} onPress={() => handleShare(item.id)}>
           <Ionicons name="share-social" size={22} color="#2563EB" />
-          <Text style={styles.iconButtonText}>Share</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -501,6 +524,70 @@ export default function BowlsScreen() {
           </View>
         </View>
       </Modal>
+      
+      {/* Modal for displaying members list */}
+      <Modal visible={membersModalVisible} animationType="slide" transparent>
+        <View style={styles.entryModalOverlay}>
+          <View style={styles.entryModalContent}>
+            <Text style={styles.modalLabel}>Members List</Text>
+            <Text style={styles.helperText}>
+              {selectedBowl ? `${selectedBowl.name} - Members` : 'Members'}
+            </Text>
+            {selectedBowl && Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.length > 0 ? (
+              <ScrollView style={styles.scrollableList} showsVerticalScrollIndicator={true}>
+                {selectedBowl.listMembers.map((member, index) => (
+                  <View key={member.id || index} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{member.name || 'Unknown Member'}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptyListText}>No members joined yet</Text>
+            )}
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity 
+                style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} 
+                onPress={() => setMembersModalVisible(false)}
+              >
+                <Ionicons name="close-circle" size={22} color="#fff" />
+                <Text style={styles.modalActionText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal for displaying entries list */}
+      <Modal visible={entriesModalVisible} animationType="slide" transparent>
+        <View style={styles.entryModalOverlay}>
+          <View style={styles.entryModalContent}>
+            <Text style={styles.modalLabel}>Entries List</Text>
+            <Text style={styles.helperText}>
+              {selectedBowl ? `${selectedBowl.name} - Entries` : 'Entries'}
+            </Text>
+            {selectedBowl && Array.isArray(selectedBowl.listEntries) && selectedBowl.listEntries.length > 0 ? (
+              <ScrollView style={styles.scrollableList} showsVerticalScrollIndicator={true}>
+                {selectedBowl.listEntries.map((entry, index) => (
+                  <View key={index} style={styles.listItem}>
+                    <Text style={styles.listItemText}>{entry}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={styles.emptyListText}>No entries added yet</Text>
+            )}
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity 
+                style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} 
+                onPress={() => setEntriesModalVisible(false)}
+              >
+                <Ionicons name="close-circle" size={22} color="#fff" />
+                <Text style={styles.modalActionText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -607,8 +694,9 @@ const styles = StyleSheet.create({
   },
   shareButtonRow: {
     marginTop: 10,
-    justifyContent: 'flex-end',
+    justifyContent: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   iconButton: {
@@ -618,7 +706,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginRight: 8,
   },
   iconButtonText: {
     marginLeft: 4,
@@ -644,5 +731,30 @@ const styles = StyleSheet.create({
     padding: 20,
     width: '85%',
     elevation: 6,
+    maxHeight: '80%',
+  },
+  scrollableList: {
+    maxHeight: 300,
+    marginVertical: 10,
+  },
+  listItem: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    marginVertical: 4,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#7C3AED',
+  },
+  listItemText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  emptyListText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    marginVertical: 20,
   },
 });
