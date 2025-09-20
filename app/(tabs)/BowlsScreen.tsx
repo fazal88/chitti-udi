@@ -319,9 +319,9 @@ export default function BowlsScreen() {
           </TouchableOpacity>
         )}
       </View>
-      <View style={styles.cardRow}>
+      <View style={[styles.cardRow, {width:'70%'}]}>
         <Text style={styles.iconText}>👤 Owner:</Text>
-        <Text style={styles.cardSubtitle}>{item.ownerName || item.ownerId}</Text>
+        <Text style={[styles.cardSubtitle]} numberOfLines={1} ellipsizeMode='tail'>{item.ownerName || item.ownerId}</Text>
       </View>
       <TouchableOpacity style={styles.cardRow} onPress={() => openMembersModal(item)}>
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members joined:</Text>
