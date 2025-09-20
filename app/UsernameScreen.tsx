@@ -1,10 +1,12 @@
 import * as SecureStore from 'expo-secure-store';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-export default function UsernameScreen({ navigation }: any) {
+export default function UsernameScreen() {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
+  const router = useRouter();
 
   const handleContinue = async () => {
     if (!username.trim()) {
@@ -12,7 +14,7 @@ export default function UsernameScreen({ navigation }: any) {
       return;
     }
     await SecureStore.setItemAsync('userName', username.trim());
-    navigation.replace('(tabs)');
+    router.replace('/(tabs)');
   };
 
   return (

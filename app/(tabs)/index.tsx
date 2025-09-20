@@ -1,5 +1,8 @@
 import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { useEffect, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import { useRouter } from 'expo-router';
 
 import { HelloWave } from '@/components/HelloWave';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -7,6 +10,39 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 
 export default function HomeScreen() {
+  const [userName, setUserName] = useState<string>('');
+  const router = useRouter();
+
+  useEffect(() => {
+    const getUserName = async () => {
+      const name = await SecureStore.getItemAsync('userName');
+      if (name) {
+        setUserName(name);
+      }
+    };
+    getUserName();
+  }, []);
+
+  const handleChangeName = () => {
+    Alert.alert(
+      'Change Name',
+      'Do you want to change your name?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Yes',
+          onPress: async () => {
+            await SecureStore.deleteItemAsync('userName');
+            router.replace('/UsernameScreen');
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
@@ -17,8 +53,15 @@ export default function HomeScreen() {
         />
       }>
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
+        <ThemedText type="title">
+          {userName ? `Welcome, ${userName}!` : 'Welcome!'}
+        </ThemedText>
         <HelloWave />
+        {userName && (
+          <TouchableOpacity style={styles.changeNameButton} onPress={handleChangeName}>
+            <ThemedText style={styles.changeNameText}>Change Name</ThemedText>
+          </TouchableOpacity>
+        )}
       </ThemedView>
       <ThemedView style={styles.stepContainer}>
         <ThemedText type="subtitle">Step 1: Try it</ThemedText>
@@ -60,6 +103,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flexWrap: 'wrap',
   },
   stepContainer: {
     gap: 8,
@@ -71,5 +115,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     position: 'absolute',
+  },
+  changeNameButton: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  changeNameText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
