@@ -35,7 +35,6 @@
     "ios": {
       "supportsTablet": true,
       "associatedDomains": [
-        "applinks:chitti-udi.com",
         "applinks:chitti-udi.com"
       ],
       "bundleIdentifier": "chitti.udi"
@@ -55,7 +54,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true
