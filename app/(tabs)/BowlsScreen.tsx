@@ -222,6 +222,15 @@ export default function BowlsScreen() {
 
   // Show entries modal
   const openEntriesModal = (bowl: Bowl) => {
+    // Only allow bowl owner to view entries
+    if (bowl.ownerId !== user.id) {
+      Alert.alert(
+        'Access Denied',
+        'Only the bowl owner can view all entries.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
     setSelectedBowl(bowl);
     setEntriesModalVisible(true);
   };
@@ -299,6 +308,51 @@ export default function BowlsScreen() {
     }
   };
 
+  // Clear all entries from a bowl (owner only)
+  const handleClearEntries = async (bowl: Bowl) => {
+    // Only allow bowl owner to clear entries
+    if (bowl.ownerId !== user.id) {
+      Alert.alert(
+        'Access Denied',
+        'Only the bowl owner can clear entries.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Clear All Entries',
+      'Are you sure you want to clear all entries? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              setError(null);
+              
+              // Update bowl in Firebase with empty entries list
+              const bowlRef = ref(db, `bowls/${bowl.id}`);
+              await set(bowlRef, {
+                ...bowl,
+                listEntries: [],
+                output: "", // Also clear any juggle result
+              });
+              
+              setLoading(false);
+              Alert.alert('Success', 'All entries have been cleared.');
+            } catch {
+              setError('Failed to clear entries');
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Function to manually refresh bowls list
   const refreshBowls = async () => {
     setRefreshing(true);
@@ -360,11 +414,20 @@ export default function BowlsScreen() {
         <Text style={styles.iconText}>🧑‍🤝‍🧑 Members allowed:</Text>
         <Text style={styles.limitText}>{item.memberLimit}</Text>
       </View>
-      <TouchableOpacity style={styles.cardRow} onPress={() => openEntriesModal(item)}>
-        <Text style={styles.iconText}>📋 Total entries:</Text>
-        <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
-        <Ionicons name="eye" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
-      </TouchableOpacity>
+      {/* Only show entries view button for bowl owner */}
+      {item.ownerId === user.id ? (
+        <TouchableOpacity style={styles.cardRow} onPress={() => openEntriesModal(item)}>
+          <Text style={styles.iconText}>📋 Total entries:</Text>
+          <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
+          <Ionicons name="eye" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+      ) : (
+        <View style={styles.cardRow}>
+          <Text style={styles.iconText}>📋 Total entries:</Text>
+          <Text style={styles.countText}>{Array.isArray(item.listEntries) ? item.listEntries.length : 0}</Text>
+          <Ionicons name="lock-closed" size={16} color="#6B7280" style={{ marginLeft: 8 }} />
+        </View>
+      )}
       <View style={styles.cardRow}>
         <Text style={styles.iconText}>🔢 Entry allowed per user :</Text>
         <Text style={styles.countText}>
@@ -606,6 +669,16 @@ export default function BowlsScreen() {
               <Text style={styles.emptyListText}>No entries added yet</Text>
             )}
             <View style={styles.modalButtonRow}>
+              {/* Clear Entries button - only visible to bowl owner */}
+              {selectedBowl && selectedBowl.ownerId === user.id && Array.isArray(selectedBowl.listEntries) && selectedBowl.listEntries.length > 0 && (
+                <TouchableOpacity 
+                  style={[styles.modalActionButton, { backgroundColor: '#F59E0B' }]} 
+                  onPress={() => handleClearEntries(selectedBowl)}
+                >
+                  <Ionicons name="trash" size={22} color="#fff" />
+                  <Text style={styles.modalActionText}>Clear All</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity 
                 style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} 
                 onPress={() => setEntriesModalVisible(false)}
