@@ -14,7 +14,19 @@ export default function UsernameScreen() {
       return;
     }
     await SecureStore.setItemAsync('userName', username.trim());
-    router.replace('/(tabs)');
+    
+    // Check if there's a pending bowl ID from deep link
+    const pendingBowlId = await SecureStore.getItemAsync('pendingBowlId');
+    if (pendingBowlId) {
+      // Clear the pending bowl ID and redirect with it
+      await SecureStore.deleteItemAsync('pendingBowlId');
+      router.replace({
+        pathname: '/(tabs)',
+        params: { bowlId: pendingBowlId }
+      });
+    } else {
+      router.replace('/(tabs)');
+    }
   };
 
   return (

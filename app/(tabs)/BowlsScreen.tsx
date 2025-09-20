@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
+import { useLocalSearchParams } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, onValue, push, ref, set } from 'firebase/database';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Button, FlatList, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import uuid from 'react-native-uuid';
@@ -40,6 +41,7 @@ interface Bowl {
 }
 
 export default function BowlsScreen() {
+  const { bowlId } = useLocalSearchParams<{ bowlId?: string }>();
   const [bowls, setBowls] = useState<Bowl[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +53,7 @@ export default function BowlsScreen() {
   const [selectedBowl, setSelectedBowl] = useState<Bowl | null>(null);
   const [deviceId, setDeviceId] = useState<string>('unknown-device');
   const [userName, setUserName] = useState('');
+  const [pendingDeepLinkBowlId, setPendingDeepLinkBowlId] = useState<string | null>(null);
   const [newBowl, setNewBowl] = useState<Bowl>({
     id: '',
     name: '',
@@ -353,6 +356,61 @@ export default function BowlsScreen() {
     );
   };
 
+  // Function to join a bowl from deep link
+  const joinBowlFromDeepLink = useCallback(async (bowlId: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Check if bowl already exists in user's list
+      let myBowls = await SecureStore.getItemAsync('listMyBowls');
+      let myBowlsArr: string[] = [];
+      if (myBowls) {
+        try {
+          myBowlsArr = JSON.parse(myBowls);
+        } catch {
+          myBowlsArr = [];
+        }
+      }
+      
+      const bowlAlreadyExists = myBowlsArr.includes(bowlId);
+
+      // Fetch bowl data from Firebase
+      const bowlRef = ref(db, `bowls/${bowlId}`);
+      const snapshot = await new Promise<any>((resolve) => {
+        onValue(bowlRef, resolve, { onlyOnce: true });
+      });
+      
+      const bowlData = snapshot.val();
+      if (!bowlData) {
+        setError('Bowl not found. The link might be invalid or the bowl may have been deleted.');
+        setLoading(false);
+        return;
+      }
+
+      // Add bowl to user's list only if it doesn't exist
+      if (!bowlAlreadyExists) {
+        myBowlsArr.push(bowlId);
+        await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
+      }
+
+      // Only show entry modal if bowl is newly added
+      if (!bowlAlreadyExists) {
+        setSelectedBowl(bowlData);
+        setEntryText('');
+        setEntryModalVisible(true);
+        setSuccess(`Successfully joined "${bowlData.name}"! Add your entry below.`);
+      }
+      
+      setLoading(false);
+      // Refresh bowls list to show the new bowl
+      refreshBowls();
+    } catch {
+      setError('Failed to join bowl. Please check your connection and try again.');
+      setLoading(false);
+    }
+  }, [setLoading, setError, setSelectedBowl, setEntryText, setEntryModalVisible, setSuccess]);
+
   // Function to manually refresh bowls list
   const refreshBowls = async () => {
     setRefreshing(true);
@@ -466,23 +524,16 @@ export default function BowlsScreen() {
       const match = url.match(/bowl\/([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         const bowlId = match[1];
-        // Save bowlId to device storage as listMyBowls
-        let myBowls = await SecureStore.getItemAsync('listMyBowls');
-        let myBowlsArr: string[] = [];
-        if (myBowls) {
-          try {
-            myBowlsArr = JSON.parse(myBowls);
-          } catch {
-            myBowlsArr = [];
-          }
+        
+        // Check if user has a username
+        if (userName && userName.trim()) {
+          // User has username, process immediately
+          await joinBowlFromDeepLink(bowlId);
+        } else {
+          // User doesn't have username yet, store for later
+          setPendingDeepLinkBowlId(bowlId);
+          setError('Please set your name first, then we\'ll add you to the bowl!');
         }
-        if (!myBowlsArr.includes(bowlId)) {
-          myBowlsArr.push(bowlId);
-          await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
-        }
-        setError(`Bowl ID ${bowlId} saved from deep link!`);
-        // Refresh bowls list
-        refreshBowls();
       }
     };
 
@@ -498,7 +549,24 @@ export default function BowlsScreen() {
     return () => {
       subscription.remove();
     };
-  }, []);
+  }, [userName, joinBowlFromDeepLink]);
+
+  // Handle pending deep link when username becomes available
+  useEffect(() => {
+    if (userName && userName.trim() && pendingDeepLinkBowlId) {
+      // User now has username and there's a pending deep link
+      joinBowlFromDeepLink(pendingDeepLinkBowlId);
+      setPendingDeepLinkBowlId(null); // Clear the pending bowl ID
+    }
+  }, [userName, pendingDeepLinkBowlId, joinBowlFromDeepLink]);
+
+  // Handle bowl ID parameter from navigation (from deep link routing)
+  useEffect(() => {
+    if (bowlId && userName && userName.trim()) {
+      // Bowl ID passed from navigation and user has username
+      joinBowlFromDeepLink(bowlId);
+    }
+  }, [bowlId, userName, joinBowlFromDeepLink]);
 
   return (
     <SafeAreaView style={styles.container}>
