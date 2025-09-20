@@ -9,24 +9,24 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		9855AAECF2D65353A496289F /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4FED494536B7F4F09B81800 /* ExpoModulesProvider.swift */; };
+		415E0A5FE1E2B6DF9F3393C0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 96F1BE9BA565C4C54E896136 /* PrivacyInfo.xcprivacy */; };
+		BA27635862DC75969117A4A2 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = C601F4003F1A760049F1F416 /* ExpoModulesProvider.swift */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
+		D6B3C2A38515E3434B9E074E /* libPods-chittiudi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B947170F18CBFC3AEAF525B6 /* libPods-chittiudi.a */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
-		F175E8022266B0F458572F69 /* libPods-chittiudi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 17ADEC3ED090FF3E14AAB894 /* libPods-chittiudi.a */; };
-		F1B57985903EF970D905ECF9 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A29838C5EC67DF094CA05885 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		13B07F961A680F5B00A75B9A /* chittiudi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = chittiudi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = chittiudi/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = chittiudi/Info.plist; sourceTree = "<group>"; };
-		17ADEC3ED090FF3E14AAB894 /* libPods-chittiudi.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-chittiudi.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		52206DEE26D03DE307DFEA54 /* Pods-chittiudi.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-chittiudi.debug.xcconfig"; path = "Target Support Files/Pods-chittiudi/Pods-chittiudi.debug.xcconfig"; sourceTree = "<group>"; };
-		A29838C5EC67DF094CA05885 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = chittiudi/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		4E647CE5C44A21325C7C5401 /* Pods-chittiudi.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-chittiudi.release.xcconfig"; path = "Target Support Files/Pods-chittiudi/Pods-chittiudi.release.xcconfig"; sourceTree = "<group>"; };
+		96F1BE9BA565C4C54E896136 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; name = PrivacyInfo.xcprivacy; path = chittiudi/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = chittiudi/SplashScreen.storyboard; sourceTree = "<group>"; };
+		B947170F18CBFC3AEAF525B6 /* libPods-chittiudi.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-chittiudi.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		BB9064B13A621FB40B730D19 /* Pods-chittiudi.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-chittiudi.release.xcconfig"; path = "Target Support Files/Pods-chittiudi/Pods-chittiudi.release.xcconfig"; sourceTree = "<group>"; };
-		D4FED494536B7F4F09B81800 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-chittiudi/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		C601F4003F1A760049F1F416 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-chittiudi/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		CB47647FECAB7C16CE88407C /* Pods-chittiudi.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-chittiudi.debug.xcconfig"; path = "Target Support Files/Pods-chittiudi/Pods-chittiudi.debug.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = chittiudi/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* chittiudi-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "chittiudi-Bridging-Header.h"; path = "chittiudi/chittiudi-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -37,7 +37,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				F175E8022266B0F458572F69 /* libPods-chittiudi.a in Frameworks */,
+				D6B3C2A38515E3434B9E074E /* libPods-chittiudi.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -53,7 +53,7 @@
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-				A29838C5EC67DF094CA05885 /* PrivacyInfo.xcprivacy */,
+				96F1BE9BA565C4C54E896136 /* PrivacyInfo.xcprivacy */,
 			);
 			name = chittiudi;
 			sourceTree = "<group>";
@@ -62,27 +62,9 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				17ADEC3ED090FF3E14AAB894 /* libPods-chittiudi.a */,
+				B947170F18CBFC3AEAF525B6 /* libPods-chittiudi.a */,
 			);
 			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		47C35F6ED107BA4C55A36741 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				52206DEE26D03DE307DFEA54 /* Pods-chittiudi.debug.xcconfig */,
-				BB9064B13A621FB40B730D19 /* Pods-chittiudi.release.xcconfig */,
-			);
-			name = Pods;
-			path = Pods;
-			sourceTree = "<group>";
-		};
-		5D89EEEFBE396054B233BE81 /* ExpoModulesProviders */ = {
-			isa = PBXGroup;
-			children = (
-				C0DCF93A8683ACA47CE493BE /* chittiudi */,
-			);
-			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		832341AE1AAA6A7D00B99B32 /* Libraries */ = {
@@ -99,8 +81,8 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				47C35F6ED107BA4C55A36741 /* Pods */,
-				5D89EEEFBE396054B233BE81 /* ExpoModulesProviders */,
+				D05CD29B5971CD95B2875A6C /* Pods */,
+				E9B48D62212EBFF8D2C6E1FF /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -124,12 +106,30 @@
 			path = chittiudi/Supporting;
 			sourceTree = "<group>";
 		};
-		C0DCF93A8683ACA47CE493BE /* chittiudi */ = {
+		CC75662FB93B2658D974F3DE /* chittiudi */ = {
 			isa = PBXGroup;
 			children = (
-				D4FED494536B7F4F09B81800 /* ExpoModulesProvider.swift */,
+				C601F4003F1A760049F1F416 /* ExpoModulesProvider.swift */,
 			);
 			name = chittiudi;
+			sourceTree = "<group>";
+		};
+		D05CD29B5971CD95B2875A6C /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				CB47647FECAB7C16CE88407C /* Pods-chittiudi.debug.xcconfig */,
+				4E647CE5C44A21325C7C5401 /* Pods-chittiudi.release.xcconfig */,
+			);
+			name = Pods;
+			path = Pods;
+			sourceTree = "<group>";
+		};
+		E9B48D62212EBFF8D2C6E1FF /* ExpoModulesProviders */ = {
+			isa = PBXGroup;
+			children = (
+				CC75662FB93B2658D974F3DE /* chittiudi */,
+			);
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -140,13 +140,13 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "chittiudi" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				25B11CDEE8447EDC28701DEB /* [Expo] Configure project */,
+				842D0CDCA385A2E122AE8306 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				4A2BD6ADDDD866D40E97F07C /* [CP] Embed Pods Frameworks */,
+				279CEF1E6785C90426A8DD1D /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -166,7 +166,9 @@
 				LastUpgradeCheck = 1130;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
+						DevelopmentTeam = F85GS5TVQ6;
 						LastSwiftMigration = 1250;
+						ProvisioningStyle = Automatic;
 					};
 				};
 			};
@@ -196,7 +198,7 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
-				F1B57985903EF970D905ECF9 /* PrivacyInfo.xcprivacy in Resources */,
+				415E0A5FE1E2B6DF9F3393C0 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -240,26 +242,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		25B11CDEE8447EDC28701DEB /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-chittiudi/expo-configure-project.sh\"\n";
-		};
-		4A2BD6ADDDD866D40E97F07C /* [CP] Embed Pods Frameworks */ = {
+		279CEF1E6785C90426A8DD1D /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -319,6 +302,25 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-chittiudi/Pods-chittiudi-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
+		842D0CDCA385A2E122AE8306 /* [Expo] Configure project */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Expo] Configure project";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-chittiudi/expo-configure-project.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -327,7 +329,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				9855AAECF2D65353A496289F /* ExpoModulesProvider.swift in Sources */,
+				BA27635862DC75969117A4A2 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -336,12 +338,15 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 52206DEE26D03DE307DFEA54 /* Pods-chittiudi.debug.xcconfig */;
+			baseConfigurationReference = CB47647FECAB7C16CE88407C /* Pods-chittiudi.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = chittiudi/chittiudi.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F85GS5TVQ6;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -372,12 +377,15 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB9064B13A621FB40B730D19 /* Pods-chittiudi.release.xcconfig */;
+			baseConfigurationReference = 4E647CE5C44A21325C7C5401 /* Pods-chittiudi.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = chittiudi/chittiudi.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = F85GS5TVQ6;
 				INFOPLIST_FILE = chittiudi/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
