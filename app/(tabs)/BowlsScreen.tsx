@@ -19,6 +19,13 @@ interface Member {
   name: string;
 }
 
+interface Entry {
+  id: string;
+  text: string;
+  userId: string;
+  userName: string;
+}
+
 interface Bowl {
   id: string;
   name: string;
@@ -26,7 +33,7 @@ interface Bowl {
   ownerId: string;
   ownerName: string;
   listMembers: Member[];
-  listEntries: string[];
+  listEntries: Entry[];
   memberLimit: number;
   inputCount: number;
   output?: string;
@@ -168,7 +175,7 @@ export default function BowlsScreen() {
       setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, ownerName: userName, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
       setModalVisible(false);
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to add bowl');
       setLoading(false);
     }
@@ -183,11 +190,11 @@ export default function BowlsScreen() {
     const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
     const result = bowl.listEntries[randomIndex];
 
-    // Update bowl output in Firebase
+    // Update bowl output in Firebase - store the entry text
     const bowlRef = ref(db, `bowls/${bowl.id}`);
     await set(bowlRef, {
       ...bowl,
-      output: result,
+      output: result.text,
     });
   };
 
@@ -232,16 +239,37 @@ export default function BowlsScreen() {
       const alreadyMember = Array.isArray(selectedBowl.listMembers) && selectedBowl.listMembers.some(m => m.id === user.id);
       const updatedMembers = alreadyMember ? selectedBowl.listMembers : [...(Array.isArray(selectedBowl.listMembers) ? selectedBowl.listMembers : []), user];
 
-      // Prevent duplicate entry
+      // Check input count limit per user if it's set
       const entries = Array.isArray(selectedBowl.listEntries) ? selectedBowl.listEntries : [];
-      if (entries.includes(entryText.trim())) {
+      const userEntryCount = entries.filter(entry => entry.userId === user.id).length;
+      
+      if (selectedBowl.inputCount > 0 && userEntryCount >= selectedBowl.inputCount) {
+        Alert.alert(
+          'Entry Limit Reached',
+          `You have already added your maximum allowed entries (${selectedBowl.inputCount}). You cannot add more entries to this bowl.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Prevent duplicate entry text
+      if (entries.some(entry => entry.text === entryText.trim())) {
         setError('Duplicate entry not allowed.');
         setLoading(false);
         return;
       }
 
+      // Create new entry object
+      const newEntry: Entry = {
+        id: uuid.v4().toString(),
+        text: entryText.trim(),
+        userId: user.id,
+        userName: user.name,
+      };
+
       // Add new entry
-      const updatedEntries = [...entries, entryText.trim()];
+      const updatedEntries = [...entries, newEntry];
 
       // Update bowl in Firebase
       const bowlRef = ref(db, `bowls/${selectedBowl.id}`);
@@ -252,7 +280,7 @@ export default function BowlsScreen() {
       });
       setEntryModalVisible(false);
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to add entry');
       setLoading(false);
     }
@@ -265,7 +293,7 @@ export default function BowlsScreen() {
       const bowlRef = ref(db, `bowls/${bowlId}`);
       await set(bowlRef, null); // Remove bowl from Firebase
       setLoading(false);
-    } catch (err) {
+    } catch {
       setError('Failed to delete bowl');
       setLoading(false);
     }
@@ -569,7 +597,8 @@ export default function BowlsScreen() {
               <ScrollView style={styles.scrollableList} showsVerticalScrollIndicator={true}>
                 {selectedBowl.listEntries.map((entry, index) => (
                   <View key={index} style={styles.listItem}>
-                    <Text style={styles.listItemText}>{entry}</Text>
+                    <Text style={styles.listItemText}>{entry.text}</Text>
+                    <Text style={styles.entryUserText}>- {entry.userName}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -749,6 +778,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
     fontWeight: '500',
+  },
+  entryUserText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
   emptyListText: {
     fontSize: 16,
