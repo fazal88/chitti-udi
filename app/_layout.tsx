@@ -21,18 +21,33 @@ export default function RootLayout() {
   React.useEffect(() => {
     (async () => {
       const name = await SecureStore.getItemAsync('userName');
+      console.log('Stored username:', name);
+      console.log('Has name:', !!name);
       setHasName(!!name);
       setChecking(false);
     })();
   }, []);
 
+  // Redirect based on whether user has a name
+  React.useEffect(() => {
+    if (!checking && hasName !== null) {
+      if (hasName) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/UsernameScreen');
+      }
+    }
+  }, [hasName, checking, router]);
+
   if (!loaded || checking || hasName === null) {
     return null;
   }
 
+  console.log('hasName value:', hasName);
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack initialRouteName={hasName ? '(tabs)' : 'UsernameScreen'}>
+      <Stack>
         <Stack.Screen name="UsernameScreen" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />

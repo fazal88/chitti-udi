@@ -1,7 +1,7 @@
-import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 export default function UsernameScreen() {
   const [username, setUsername] = useState('');
@@ -20,23 +20,32 @@ export default function UsernameScreen() {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      <View style={styles.innerContainer}>
-        <Text style={styles.title}>Welcome!</Text>
-        <Text style={styles.subtitle}>Please enter your name to continue</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Your Name"
-          value={username}
-          onChangeText={setUsername}
-          autoFocus
-        />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-        <TouchableOpacity style={styles.button} onPress={handleContinue}>
-          <Text style={styles.buttonText}>Continue</Text>
-        </TouchableOpacity>
-      </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.innerContainer}>
+          <Text style={styles.title}>Welcome!</Text>
+          <Text style={styles.subtitle}>Please enter your name to continue</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Your Name"
+            value={username}
+            onChangeText={setUsername}
+            autoFocus
+            returnKeyType="done"
+            onSubmitEditing={handleContinue}
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <TouchableOpacity style={styles.button} onPress={handleContinue}>
+            <Text style={styles.buttonText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -44,12 +53,18 @@ export default function UsernameScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#f7f7f7',
   },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
   innerContainer: {
-    width: '85%',
+    width: '100%',
+    maxWidth: 400,
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 24,
