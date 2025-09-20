@@ -27,6 +27,15 @@ interface Entry {
   userName: string;
 }
 
+enum BowlType {
+  PICK_ONE_DISCARD = 'pick_one_discard',
+  PICK_ONE_KEEP = 'pick_one_keep',
+  SHUFFLE_MEMBERS = 'shuffle_members',
+  MAKE_PAIRS = 'make_pairs',
+  SECRET_SANTA = 'secret_santa',
+  SHUFFLE_ENTRIES = 'shuffle_entries'
+}
+
 interface Bowl {
   id: string;
   name: string;
@@ -37,6 +46,7 @@ interface Bowl {
   listEntries: Entry[];
   memberLimit: number;
   inputCount: number;
+  type: BowlType;
   output?: string;
 }
 
@@ -64,6 +74,7 @@ export default function BowlsScreen() {
     listEntries: [],
     memberLimit: 0,
     inputCount: 0,
+    type: BowlType.PICK_ONE_DISCARD,
     output: '',
   });
   const [success, setSuccess] = useState<string | null>(null); // For success feedback
@@ -175,7 +186,7 @@ export default function BowlsScreen() {
         await SecureStore.setItemAsync('listMyBowls', JSON.stringify(myBowlsArr));
       }
 
-      setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, ownerName: userName, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0 });
+      setNewBowl({ id: '', name: '', description: '', ownerId: deviceId, ownerName: userName, listMembers: [], listEntries: [], memberLimit: 0, inputCount: 0, type: BowlType.PICK_ONE_DISCARD });
       setModalVisible(false);
       setLoading(false);
     } catch {
@@ -184,21 +195,134 @@ export default function BowlsScreen() {
     }
   };
 
-  // Juggle logic: randomly pick one entry from listEntries and store in output
+  // Type-specific shuffle logic for different bowl types
   const handleJuggle = async (bowl: Bowl) => {
-    if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
-      setError('No entries to juggle!');
+    // Check permissions first
+    const canShuffle = bowl.type === BowlType.PICK_ONE_DISCARD || bowl.type === BowlType.PICK_ONE_KEEP 
+      ? true // Any member can shuffle for these types
+      : bowl.ownerId === user.id; // Only owner can shuffle for other types
+
+    if (!canShuffle) {
+      setError('Only the bowl owner can perform this action.');
       return;
     }
-    const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
-    const result = bowl.listEntries[randomIndex];
 
-    // Update bowl output in Firebase - store the entry text
-    const bowlRef = ref(db, `bowls/${bowl.id}`);
-    await set(bowlRef, {
-      ...bowl,
-      output: result.text,
-    });
+    let result = '';
+    
+    switch (bowl.type) {
+      case BowlType.PICK_ONE_DISCARD:
+        if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
+          setError('No entries to shuffle!');
+          return;
+        }
+        const randomIndex = Math.floor(Math.random() * bowl.listEntries.length);
+        const selectedEntry = bowl.listEntries[randomIndex];
+        result = selectedEntry.text;
+        // Remove the selected entry from the list
+        const updatedEntries = bowl.listEntries.filter((_, index) => index !== randomIndex);
+        await updateBowlInFirebase(bowl.id, { ...bowl, listEntries: updatedEntries, output: result });
+        break;
+
+      case BowlType.PICK_ONE_KEEP:
+        if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
+          setError('No entries to shuffle!');
+          return;
+        }
+        const randomIndex2 = Math.floor(Math.random() * bowl.listEntries.length);
+        result = bowl.listEntries[randomIndex2].text;
+        await updateBowlInFirebase(bowl.id, { ...bowl, output: result });
+        break;
+
+      case BowlType.SHUFFLE_MEMBERS:
+        if (!Array.isArray(bowl.listMembers) || bowl.listMembers.length === 0) {
+          setError('No members to shuffle!');
+          return;
+        }
+        const shuffledMembers = [...bowl.listMembers].sort(() => Math.random() - 0.5);
+        result = shuffledMembers.map((member, index) => `${index + 1}. ${member.name}`).join('\n');
+        await updateBowlInFirebase(bowl.id, { ...bowl, output: result });
+        break;
+
+      case BowlType.MAKE_PAIRS:
+        if (!Array.isArray(bowl.listMembers) || bowl.listMembers.length < 2) {
+          setError('Need at least 2 members to make pairs!');
+          return;
+        }
+        const shuffledForPairs = [...bowl.listMembers].sort(() => Math.random() - 0.5);
+        const pairs = [];
+        for (let i = 0; i < shuffledForPairs.length; i += 2) {
+          if (i + 1 < shuffledForPairs.length) {
+            pairs.push(`${shuffledForPairs[i].name} & ${shuffledForPairs[i + 1].name}`);
+          } else {
+            pairs.push(`${shuffledForPairs[i].name} (Solo)`);
+          }
+        }
+        result = pairs.map((pair, index) => `Pair ${index + 1}: ${pair}`).join('\n');
+        await updateBowlInFirebase(bowl.id, { ...bowl, output: result });
+        break;
+
+      case BowlType.SECRET_SANTA:
+        if (!Array.isArray(bowl.listMembers) || bowl.listMembers.length < 2) {
+          setError('Need at least 2 members for Secret Santa!');
+          return;
+        }
+        const members = [...bowl.listMembers];
+        const shuffled = [...members].sort(() => Math.random() - 0.5);
+        const assignments = members.map((giver, index) => {
+          const receiverIndex = (index + 1) % members.length;
+          return `${giver.name} → ${shuffled[receiverIndex].name}`;
+        });
+        result = 'Secret Santa Assignments:\n' + assignments.join('\n');
+        await updateBowlInFirebase(bowl.id, { ...bowl, output: result });
+        break;
+
+      case BowlType.SHUFFLE_ENTRIES:
+        if (!Array.isArray(bowl.listEntries) || bowl.listEntries.length === 0) {
+          setError('No entries to shuffle!');
+          return;
+        }
+        const shuffledEntries = [...bowl.listEntries].sort(() => Math.random() - 0.5);
+        result = shuffledEntries.map((entry, index) => `${index + 1}. ${entry.text}`).join('\n');
+        await updateBowlInFirebase(bowl.id, { ...bowl, output: result });
+        break;
+
+      default:
+        setError('Unknown bowl type');
+        return;
+    }
+  };
+
+  // Helper function to update bowl in Firebase
+  const updateBowlInFirebase = async (bowlId: string, updatedBowl: Bowl) => {
+    const bowlRef = ref(db, `bowls/${bowlId}`);
+    await set(bowlRef, updatedBowl);
+  };
+
+  // Helper function to get shuffle button text based on bowl type
+  const getShuffleButtonText = (type: BowlType): string => {
+    switch (type) {
+      case BowlType.PICK_ONE_DISCARD:
+        return 'Pick & Remove';
+      case BowlType.PICK_ONE_KEEP:
+        return 'Pick One';
+      case BowlType.SHUFFLE_MEMBERS:
+        return 'Shuffle Members';
+      case BowlType.MAKE_PAIRS:
+        return 'Make Pairs';
+      case BowlType.SECRET_SANTA:
+        return 'Assign Santa';
+      case BowlType.SHUFFLE_ENTRIES:
+        return 'Shuffle Entries';
+      default:
+        return 'Shuffle';
+    }
+  };
+
+  // Helper function to check if user can shuffle
+  const canUserShuffle = (bowl: Bowl): boolean => {
+    return bowl.type === BowlType.PICK_ONE_DISCARD || bowl.type === BowlType.PICK_ONE_KEEP 
+      ? true // Any member can shuffle for these types
+      : bowl.ownerId === user.id; // Only owner can shuffle for other types
   };
 
   const handleShare = (bowlId: string) => {
@@ -411,7 +535,7 @@ export default function BowlsScreen() {
       setError('Failed to join bowl. Please check your connection and try again.');
       setLoading(false);
     }
-  }, [setLoading, setError, setSelectedBowl, setEntryText, setEntryModalVisible, setSuccess]);
+  }, [setLoading, setError, setSelectedBowl]);
 
   // Function to manually refresh bowls list
   const refreshBowls = async () => {
@@ -503,7 +627,7 @@ export default function BowlsScreen() {
       )}
       <View style={styles.shareButtonRow}>
         {/* Show juggle button only if ownerId matches deviceId */}
-        {item.ownerId === deviceId && (
+        {canUserShuffle(item) && (
           <TouchableOpacity style={styles.iconButton} onPress={() => handleJuggle(item)}>
             <Ionicons name="shuffle" size={22} color="#ff0d00" />
             <Text style={styles.iconButtonText}>Shuffle</Text>
@@ -623,6 +747,47 @@ export default function BowlsScreen() {
             onChangeText={(text) => setNewBowl({ ...newBowl, description: text })}
             style={styles.input}
           />
+          
+          {/* Bowl Type Selection */}
+          <Text style={styles.sectionLabel}>Bowl Type</Text>
+          <ScrollView style={styles.typeSelection} showsVerticalScrollIndicator={false}>
+            {[
+              { type: BowlType.PICK_ONE_DISCARD, title: 'Pick One & Discard', description: 'Pick one entry and discard it from results (Members can shuffle)' },
+              { type: BowlType.PICK_ONE_KEEP, title: 'Pick One & Keep', description: 'Pick one entry but keep all entries visible (Members can shuffle)' },
+              { type: BowlType.SHUFFLE_MEMBERS, title: 'Shuffle Members', description: 'Shuffle and show list of member names (Owner only)' },
+              { type: BowlType.MAKE_PAIRS, title: 'Make Pairs', description: 'Shuffle members and create pairs (Owner only)' },
+              { type: BowlType.SECRET_SANTA, title: 'Secret Santa', description: 'Assign secret santa to each member (Owner only)' },
+              { type: BowlType.SHUFFLE_ENTRIES, title: 'Shuffle Entries', description: 'Shuffle the order of all entries (Owner only)' }
+            ].map((option) => (
+              <TouchableOpacity
+                key={option.type}
+                style={[
+                  styles.typeOption,
+                  newBowl.type === option.type && styles.selectedTypeOption
+                ]}
+                onPress={() => setNewBowl({ ...newBowl, type: option.type })}
+              >
+                <View style={styles.typeOptionContent}>
+                  <Text style={[
+                    styles.typeOptionTitle,
+                    newBowl.type === option.type && styles.selectedTypeOptionText
+                  ]}>
+                    {option.title}
+                  </Text>
+                  <Text style={[
+                    styles.typeOptionDescription,
+                    newBowl.type === option.type && styles.selectedTypeOptionDescription
+                  ]}>
+                    {option.description}
+                  </Text>
+                </View>
+                {newBowl.type === option.type && (
+                  <Ionicons name="checkmark-circle" size={24} color="#7C3AED" />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          
           <TextInput
             placeholder="Member Limit (0 means No Limit)"
             value={newBowl.memberLimit === 0 ? '' : newBowl.memberLimit.toString()}
@@ -749,6 +914,22 @@ export default function BowlsScreen() {
                   <Text style={styles.modalActionText}>Clear All</Text>
                 </TouchableOpacity>
               )}
+              
+              {/* Shuffle button - visibility depends on bowl type */}
+              {selectedBowl && Array.isArray(selectedBowl.listEntries) && selectedBowl.listEntries.length > 0 && canUserShuffle(selectedBowl) && (
+                <>
+                  {selectedBowl.ownerId === user.id && <View style={{ width: 12 }} />}
+                  <TouchableOpacity 
+                    style={[styles.modalActionButton, { backgroundColor: '#7C3AED' }]} 
+                    onPress={() => handleJuggle(selectedBowl)}
+                  >
+                    <Ionicons name="shuffle" size={22} color="#fff" />
+                    <Text style={styles.modalActionText}>{getShuffleButtonText(selectedBowl.type)}</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              
+              <View style={{ width: 12 }} />
               <TouchableOpacity 
                 style={[styles.modalActionButton, { backgroundColor: '#EF4444' }]} 
                 onPress={() => setEntriesModalVisible(false)}
@@ -849,12 +1030,19 @@ const styles = StyleSheet.create({
   modalLabel: { fontSize: 15, color: '#7C3AED', marginBottom: 8, fontWeight: 'bold' },
   helperText: { fontSize: 13, color: '#6B7280', marginBottom: 8 },
   input: { borderWidth: 1, borderColor: '#ccc', marginBottom: 12, padding: 8, borderRadius: 4 },
-  modalButtonRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 8 },
+  modalButtonRow: { 
+    flexDirection: 'row',
+    flexWrap: 'wrap', 
+    justifyContent: 'flex-start', 
+    alignItems: 'center', 
+    marginTop: 8 
+  },
   modalActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#10B981',
     borderRadius: 20,
+    marginTop: 6,
     paddingVertical: 8,
     paddingHorizontal: 16,
   },
@@ -934,5 +1122,51 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     marginVertical: 20,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    marginTop: 16,
+  },
+  typeSelection: {
+    maxHeight: 200,
+    marginBottom: 16,
+  },
+  typeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    marginVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedTypeOption: {
+    backgroundColor: '#EDE9FE',
+    borderColor: '#7C3AED',
+    borderWidth: 2,
+  },
+  typeOptionContent: {
+    flex: 1,
+  },
+  typeOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  selectedTypeOptionText: {
+    color: '#7C3AED',
+  },
+  typeOptionDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+  selectedTypeOptionDescription: {
+    color: '#8B5CF6',
   },
 });
